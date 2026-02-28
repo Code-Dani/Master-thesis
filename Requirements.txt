@@ -1,0 +1,4 @@
+matplotlib
+pyspark
+jupyter
+seaborn

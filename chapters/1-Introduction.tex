@@ -2,12 +2,35 @@
 
 \begin{document}
 
-\chapter*{Introduzione}
-\addcontentsline{toc}{chapter}{Introduction}
+\chapter{Introduzione}
+
 \label{chap:Introduction}
 
+\large{\red{da ricontrollare dopo aver finito la tesi}}
 
-\cite{einstein}
-This is \textcolor{red}{red text} for the introduction.
+Negli ultimi anni, il Deep Learning ha raggiunto risultati straordinari in domini applicativi molto diversi tra loro: dalla classificazione di immagini al riconoscimento del parlato, dal natural language processing alla previsione di serie temporali. Questo progresso è stato guidato in larga misura da innovazioni architetturali, reti sempre più profonde, meccanismi di attenzione, normalizzazioni avanzate e da un accesso crescente a risorse computazionali. Tuttavia, un aspetto fondamentale tende a essere sistematicamente sottovalutato nella letteratura: la qualità dei dati su cui questi modelli vengono addestrati.
+Nella pratica industriale e scientifica, i \textit{dataset raramente} sono \textit{privi di errori}. Valori \textbf{mancanti}, \textbf{duplicati}, \textbf{etichette inconsistenti}, \textbf{rumore numerico}, etc. Nonostante ciò, la maggior parte degli studi valuta le architetture DL su dati puliti o artificialmente bilanciati, rendendo difficile trasferire i risultati ottenuti in laboratorio a contesti applicativi dove la pulizia dei dati non è garantita.\\
+Questa tesi si propone di colmare questa lacuna attraverso uno studio empirico sistematico: anziché progettare una nuova architettura, l'obiettivo è misurare in modo rigoroso e replicabile come diversi tipi di corruzione influenzino le performance di modelli DL esistenti, su due domini distinti: \textbf{dati tabulari} e \textbf{serie temporali}. L'analisi è condotta su larga scala, sfruttando un cluster Apache Spark \footnote{\url{https://spark.apache.org/}}\footnote{\url{https://spark.apache.org/docs/latest/cluster-overview.html}} distribuito per gestire l'elevato numero di esperimenti richiesti da un protocollo statisticamente valido.
+Lo strumento centrale per l'iniezione controllata del rumore è \textbf{PuckTrick}~\cite{agostini2025pucktricklibrarymakingsynthetic}, una libreria Python open-source sviluppata presso l'Università degli Studi di Milano-Bicocca. Originariamente progettata per l'ecosistema Pandas e per modelli di machine learning classici. PuckTrick è stata estesa nel corso di questa tesi per operare nativamente su Apache Spark, abilitando l'elaborazione distribuita su dataset di grandi dimensioni e rendendo il processo di iniezione del rumore scalabile all'intero piano sperimentale.
+
+% ---- rimosso in quanto è troppo specifico per un introduzione, verrà inserito nei capitoli successivi ----
+%Il dataset scelto per questo esperimento è stato MetroPT-3 \cite{metropt-%3_dataset_791} per via della sua natura temporale, la grandezza, il numero di %feature ed infine anche perchè non presenta valori mancanti, quindi risulta %essere un perfetto candidato per quantificare il rumore immesso nel DT e gli %effetti che esso causa ai modelli.
+
+\section{Obiettivi}
+Gli obiettivi specifici della tesi sono i seguenti:
+\begin{enumerate}
+\item Portare i cinque iniettori di rumore di PuckTrick — \textbf{duplicati}, \textbf{etichette} \textbf{inconsistenti}, \textbf{valori mancanti}, \textbf{rumore numerico} e \textbf{outlier} — dall'ecosistema Pandas a PySpark, preservando la semantica originale dei metodi;
+\item Configurare e documentare un ambiente Apache Spark distribuito con architettura master-worker, utilizzato come infrastruttura per l'intera sperimentazione;
+\item Misurare quantitativamente l'impatto di ciascuna tipologia di rumore su modelli DL per dati tabulari (MLP) e per serie temporali (LSTM), attraverso un protocollo sperimentale basato su 20 run con seed diversi e intervalli di confidenza al 95%;
+\item Confrontare la robustezza relativa dei modelli e identificare quali tipologie di errore risultano più destabilizzanti per ciascun dominio.
+\end{enumerate}
+\section{Struttura del documento}
+Il documento è strutturato con i seguenti capitoli:
+\begin{itemize}
+    \item Stato dell'arte \ref{chap:StateOfArt}: introduce lo stato dell'arte sulla qualità dei dati nel Machine Learning e nel Deep Learning, presenta le tecnologie utilizzate: Apache Spark e PuckTrick e descrive il contesto della letteratura sulle serie temporali.
+    \item Design e implementazioni \ref{chap:DesignAndImplementation}: illustra il design e l'implementazione della libreria estesa, la configurazione del cluster e le scelte progettuali adottate.
+    \item Analisi empirica \ref{chap:EmpyricAnalysis}: presenta il setup sperimentale, i dataset utilizzati e i risultati dell'analisi empirica.
+    \item Conclusioni \ref{chap:conclusion}: conclude con una sintesi dei risultati, le limitazioni del lavoro e le direzioni di ricerca future.
+\end{itemize}
 
 \end{document}

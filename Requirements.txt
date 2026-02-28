@@ -2,3 +2,4 @@ matplotlib
 pyspark
 jupyter
 seaborn
+pyarrow

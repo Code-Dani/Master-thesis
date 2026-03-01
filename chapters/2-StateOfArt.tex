@@ -5,6 +5,114 @@
 \chapter{Stato dell'arte}
 \label{chap:StateOfArt}
 
-This is \textcolor{red}{red text} for related work.
+\section{Impatto qualità dei dati su Deep Learning}
+Negli ultimi quindici anni la ricerca sul machine learning ha adottato prevalentemente un approccio \textit{model-centric}, dove il dataset viene considerato immutabile e il miglioramento delle prestazioni viene perseguito attraverso l'innovazione architetturale (Figura~\ref{fig:modelCentricWorkflow}).
+
+\begin{figure}[H]
+    \centering
+    \includesvg[width=1\linewidth]{images/model-centric}
+    \caption{Model-centric workflow \cite{google2024mlcrashcourse}}
+    \label{fig:modelCentricWorkflow}
+\end{figure}
+
+Questo paradigma ha prodotto risultati rilevanti, ma ha progressivamente mostrato i propri limiti: le prestazioni sui benchmark standard tendono a saturarsi e i miglioramenti ottenuti spesso sono marginali.
+
+In risposta a questi limiti, si è affermato il paradigma \textit{data-centric} (Figura~\ref{fig:dataCentricWorkflow}), formalizzato da Andrew Ng \cite{jakubik2024datacentricartificialintelligence}: dove il modello è relativamente stabile e si migliora iterativamente il dataset attraverso miglioramenti come \textit{correzione delle label}, \textit{strategie di sampling migliori}, \textit{rilevamento del rumore}, etc. \label{datiTrattatiComeVariabileDiDesign} I dati sono adesso trattati come variabile di design e la loro ottimizzazione è vista come un componente controllabile della sperimentazione.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/data-centric.png}
+    \caption{Data-centric workflow \cite{elucidata2023datacentric}}
+    \label{fig:dataCentricWorkflow}
+\end{figure}
+
+Il problema assume una rilevanza ancora maggiore nel contesto del Deep Learning, infatti, si è dimostrato \cite{zhang2017understandingdeeplearningrequires} che i modelli DL sono in grado di memorizzare completamente etichette assegnate in modo casuale, raggiungendo training loss prossimo a zero anche in presenza di rumore totale. Questo implica che le architetture DL non possiedono una resistenza naturale alla corruzione dei dati e la loro capacità di generalizzazione dipende in modo critico dalla qualità del dataset di addestramento, molto più di quanto avvenga per modelli di machine learning.
+
+Di seguito vengono analizzati le cinque tipologie di rumore che verranno applicate:
+\subsection{Duplicati}
+I duplicati in un dataset sono righe o osservazioni identiche (o quasi) che si ripetono più volte. Rappresentano una \textit{ridondanza nei dati}, dove la stessa combinazione di valori applicata a tutte (o quasi tutte) le feature, appare ripetutamente. Ci possono essere diverse cause per le quali questo tipo di rumore può essere presente all'interno di un dataset. Tra le cause più comuni vi è la fusione di dati provenienti da fonti eterogenee.
+La presenza di duplicati all'interno del training set può impattare negativamente le prestazioni del modello in due modi principali. Il primo riguarda la distorsione delle metriche: se i duplicati sono presenti sia nel training che nel validation set, le metriche di valutazione risultano artificialmente gonfiate, producendo una stima ottimistica delle prestazioni reali. Il secondo riguarda l'overfitting: il modello viene esposto ripetutamente agli stessi pattern, riducendo la diversità effettiva del training set e compromettendo la capacità di generalizzazione su dati non visti.
+
+Tuttavia, Maurino, nel suo paper "How Data Quality Affects Machine Learning Models for Credit Risk Assessment" \cite{maurino2025data} rileva un risultato controintuitivo: in ambito machine learning, i modelli con rumore duplicato introdotto ottengono prestazioni superiori rispetto alla baseline su otto dei dieci modelli testati. È degno di nota che l'unico modello con architettura deep learning incluso nell'analisi (MLP) mostri invece una degradazione delle prestazioni, suggerendo che i modelli deep potrebbero essere più sensibili alla presenza di duplicati rispetto ai modelli ML classici. Questo aspetto verrà analizzato nel dettaglio nella sezione di analisi empirica~\ref{chap:EmpyricAnalysis}.
+
+\subsection{Rumore sulle etichette}
+Il rumore sulle etichette indica casi dove nel dataset l'etichetta assegnata ad una riga è errata rispetto la realtà. Si tratta di dati rumorosi causati prevalentamente da errori umani \cite{Geiger_2021} o scraper web errati, i quali, durante la fase di labelling introducono errori. Tra i più comuni troviamo: etichette scambiate, etichette errate. Si definisce errore di etichettatura, dunque, qualsiasi alterazione errata delle etichette di classe all'interno del dataset.
+
+Il rumore sulle etichette può essere modellato formalmente 
+attraverso una matrice di transizione $T$, dove ogni elemento (Equazione~\ref{eq:matriceTransizione}):
+
+\begin{equation}
+    T_{ij} = P(\tilde{y} = j \mid y^{true} = i)
+    \label{eq:matriceTransizione}
+\end{equation}
+
+rappresenta la probabilità che un'etichetta vera $i$ venga 
+osservata come $j$ nel dataset corrotto. Gli elementi sulla 
+diagonale principale corrispondono alla probabilità di 
+etichettatura corretta, mentre gli elementi fuori diagonale 
+rappresentano la probabilità di errore sistematico, come illustrato nell'equazione~\ref{eq:matriceEsplicita}.
+
+\begin{equation}
+T = \begin{pmatrix} T_{00} & T_{01} \\ T_{10} & T_{11} 
+\end{pmatrix}
+ \label{eq:matriceEsplicita}
+\end{equation}
+
+In un modello, questo tipo di errore produce una degradazione 
+sistematica delle prestazioni dovute all'ottimizzazione su osservazioni con supervisione errata. Questo risultato si riflette anche nel lavoro di Maurino \cite{maurino2025data}: il rumore sulle etichette è l'unico tipo di errore che impatta negativamente tutti i dieci modelli testati senza eccezioni, incluso il modello deep MLP. A sostegno di ciò, come anticipato nell'introduzione, Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} rilevano che i modelli deep tendono a memorizzare il rumore anziché ignorarlo, portando a prestazioni degradate in scenari reali.
+
+\red{da ricontrollare dopo aver finito la tesi}
+
+\subsection{Valori mancanti}
+testo...
+
+\subsection{Rumore sulle feature}
+testo...
+
+\subsection{Outlier}
+testo...
+
+
+\section{Apache Spark per il Machine Learning}
+\textbf{Apache Spark} è un framework open-source per l'elaborazione
+distribuita di dati su larga scala, originariamente sviluppato presso
+l'UC Berkeley e oggi mantenuto dalla Apache Software Foundation \cite{sparkApache}. A
+differenza di Pandas, che opera in memoria su una singola macchina,
+Spark distribuisce il carico computazionale su un \textbf{cluster di
+nodi}, ottimizzando così il carico di lavoro. Spark ha diverse caratteristiche, le più rilevanti per questo lavoro sono: \textbf{lavora a livello di colonne}, infatti, rispetto a Pandas, Spark usa una struttura colonnare del dataset che gli permette di ottimizzare le operazioni su grande scala e diminuire notevolmente il peso di un dataset se salvato con il suo formato (.parquet), infatti, il formato parquet è notorio per la sua ottima compressione dei dati. Spark è fortemente integrato su diversi linguaggi di sviluppo come Python, Java, Scala ed R e cosa più importante \textbf{permette scalabilità orizzontale}
+
+L'integrazione di Spark in PuckTrick consente alla libreria di superare
+i limiti di memoria e performance imposti da Pandas quando si lavora con
+dataset di grandi dimensioni.
+
+\subsection{MLlib e TorchDistributor}
+MLlib è la libreria di machine learning nativa di Apache Spark. Offre algoritmi già parallelizzati e ottimizzati per l'esecuzione distribuita, consentendo il training direttamente su DataFrame Spark senza necessità di conversioni. Per questo lavoro il modello rilevante è il \textit{MultilayerPerceptronClassifier} (d'ora in poi MLP), una rete neurale per classificazione disponibile nativamente in MLlib.
+
+Per le architetture più complesse non disponibili in MLlib, come la rete LSTM utilizzata per le serie temporali, Spark mette a disposizione \textit{TorchDistributor}: un modulo PySpark che permette di eseguire training PyTorch in modo distribuito su cluster Spark.
+
+\section{Pucktrick}
+
+Pucktrick è una libreria Python open-source che fornisce funzionalità per introdurre in modo controllato diversi tipi di corruzione all'interno di dataset, con l'obiettivo di simulare scenari realistici di degrado della qualità dei dati. Il nome della libreria è ispirato a Puck, il folletto dispettoso del romanzo \textit{A Midsummer Night's Dream} di Shakespeare, celebre per il caos che semina tra mortali e fate\cite{pucktrick}.
+
+La libreria supporta cinque tipologie di corruzione  \cite{maurino2025data}:
+
+\begin{itemize}
+    \item \textbf{Duplicati}: inserimento di copie di righe esistenti nel dataset, inclusi duplicati esatti e duplicati modificati tramite alterazione di valori in colonne selezionate.
+    
+    \item \textbf{Rumore}: introduzione di rumore sui dati sostituendo i valori originali con valori campionati uniformemente nel range della feature. Per le feature di tipo stringa vengono generate stringhe casuali.
+    
+    \item \textbf{Outlier}: aggiunta di valori anomali applicabile a feature continue ed eterogenee. I valori vengono generati nell'intervallo $[3\sigma, 5\sigma]$ per valori superiori alla media e $[-5\sigma, -3\sigma]$ per valori inferiori.
+    
+    \item \textbf{Valori mancanti}: rimozione controllata di valori impostando le celle selezionate a NaN.
+    
+    \item \textbf{Etichette errate}: corruzione intenzionale delle etichette di classe attraverso lo scambio di valori tra classi.
+\end{itemize}
+
+\subsection{Porting su Spark}
+\red{qui non ho capito de devo citare tutto il porting o solo quello che ho fatto io}
+
+\section{Rumore nelle serie temporali}
+
+
 
 \end{document}

@@ -1,0 +1,11 @@
+{
+  "layers": [
+    13,
+    64,
+    2
+  ],
+  "maxIter": 100,
+  "stepSize": 0.05,
+  "blockSize": 128,
+  "baseline_f1": 0.9822523417285991
+}

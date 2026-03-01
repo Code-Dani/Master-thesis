@@ -33,7 +33,7 @@ Di seguito vengono analizzati le cinque tipologie di rumore che verranno applica
 I duplicati in un dataset sono righe o osservazioni identiche (o quasi) che si ripetono più volte. Rappresentano una \textit{ridondanza nei dati}, dove la stessa combinazione di valori applicata a tutte (o quasi tutte) le feature, appare ripetutamente. Ci possono essere diverse cause per le quali questo tipo di rumore può essere presente all'interno di un dataset. Tra le cause più comuni vi è la fusione di dati provenienti da fonti eterogenee.
 La presenza di duplicati all'interno del training set può impattare negativamente le prestazioni del modello in due modi principali. Il primo riguarda la distorsione delle metriche: se i duplicati sono presenti sia nel training che nel validation set, le metriche di valutazione risultano artificialmente gonfiate, producendo una stima ottimistica delle prestazioni reali. Il secondo riguarda l'overfitting: il modello viene esposto ripetutamente agli stessi pattern, riducendo la diversità effettiva del training set e compromettendo la capacità di generalizzazione su dati non visti.
 
-Tuttavia, Maurino, nel suo paper "How Data Quality Affects Machine Learning Models for Credit Risk Assessment" \cite{maurino2025data} rileva un risultato controintuitivo: in ambito machine learning, i modelli con rumore duplicato introdotto ottengono prestazioni superiori rispetto alla baseline su otto dei dieci modelli testati. È degno di nota che l'unico modello con architettura deep learning incluso nell'analisi (MLP) mostri invece una degradazione delle prestazioni, suggerendo che i modelli deep potrebbero essere più sensibili alla presenza di duplicati rispetto ai modelli ML classici. Questo aspetto verrà analizzato nel dettaglio nella sezione di analisi empirica~\ref{chap:EmpyricAnalysis}.
+Tuttavia, Maurino, nel suo paper "How Data Quality Affects Machine Learning Models for Credit Risk Assessment" \cite{maurino2025data} rileva un risultato controintuitivo: in ambito machine learning, i modelli con rumore duplicato introdotto ottengono prestazioni superiori rispetto alla baseline su otto dei dieci modelli testati. È degno di nota che l'unico modello con architettura deep learning incluso nell'analisi (MLP) mostri invece una degradazione delle prestazioni, suggerendo che i modelli deep potrebbero essere più sensibili alla presenza di duplicati rispetto ai modelli ML classici. Questo aspetto verrà analizzato nel dettaglio nel Capitolo~\ref{chap:EmpyricAnalysis}.
 
 \subsection{Rumore sulle etichette}
 Il rumore sulle etichette indica casi dove nel dataset l'etichetta assegnata ad una riga è errata rispetto la realtà. Si tratta di dati rumorosi causati prevalentamente da errori umani \cite{Geiger_2021} o scraper web errati, i quali, durante la fase di labelling introducono errori. Tra i più comuni troviamo: etichette scambiate, etichette errate. Si definisce errore di etichettatura, dunque, qualsiasi alterazione errata delle etichette di classe all'interno del dataset.
@@ -92,7 +92,7 @@ Per le architetture più complesse non disponibili in MLlib, come la rete LSTM u
 
 \section{Pucktrick}
 
-Pucktrick è una libreria Python open-source che fornisce funzionalità per introdurre in modo controllato diversi tipi di corruzione all'interno di dataset, con l'obiettivo di simulare scenari realistici di degrado della qualità dei dati. Il nome della libreria è ispirato a Puck, il folletto dispettoso del romanzo \textit{A Midsummer Night's Dream} di Shakespeare, celebre per il caos che semina tra mortali e fate\cite{pucktrick}.
+Pucktrick è una libreria Python open-source che fornisce funzionalità per introdurre in modo controllato diversi tipi di corruzione all'interno di dataset, con l'obiettivo di simulare scenari realistici di degrado della qualità dei dati. Il nome della libreria è ispirato a Puck, il folletto dispettoso del romanzo \textit{A Midsummer Night's Dream} di Shakespeare, celebre per il caos che semina tra mortali e fate\cite{agostini2025pucktricklibrarymakingsynthetic}.
 
 La libreria supporta cinque tipologie di corruzione  \cite{maurino2025data}:
 
@@ -108,8 +108,9 @@ La libreria supporta cinque tipologie di corruzione  \cite{maurino2025data}:
     \item \textbf{Etichette errate}: corruzione intenzionale delle etichette di classe attraverso lo scambio di valori tra classi.
 \end{itemize}
 
-\subsection{Porting su Spark}
-\red{qui non ho capito de devo citare tutto il porting o solo quello che ho fatto io}
+Il presente lavoro estende Pucktrick introducendo un backend 
+Apache Spark, descritto nel dettaglio nel 
+Capitolo~\ref{chap:DesignAndImplementation}.
 
 \section{Rumore nelle serie temporali}
 

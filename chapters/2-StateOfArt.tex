@@ -113,7 +113,49 @@ Apache Spark, descritto nel dettaglio nel
 Capitolo~\ref{chap:DesignAndImplementation}.
 
 \section{Rumore nelle serie temporali}
+Una serie temporale è una sequenza di valori ordinati nel tempo la cui differenza principale rispetto a un dataset tabulare è che l'ordine di questi conta, quindi mescolare la serie distrugge l'informazione temporale.
+Con le serie temporali bisogna definire due concetti chiave: \textbf{point anomaly} e \textbf{contextual anomaly}, il primo si verifica quando uno o più valori risultano anomali in assoluto rispetto alla distribuzione generale della serie (Tabella~\ref{tab:pointAnomaly}),il secondo si verifica quando un valore è normale in assoluto ma risulta anomalo nel contesto temporale in cui è inserito (Tabella~\ref{tab:contextualAnomaly}).
 
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Ora} & \textbf{Temperatura (°C)} \\
+\hline
+12:00 & 20 \\
+13:00 & 21 \\
+14:00 & \textbf{200} \\
+15:00 & 20 \\
+16:00 & 19 \\
+\hline
+\end{tabular}
+\caption{Esempio di point anomaly: il valore alle 14:00 
+è anomalo in assoluto rispetto a tutti gli altri.}
+\label{tab:pointAnomaly}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Data} & \textbf{Mese} & \textbf{Temperatura (°C)} \\
+\hline
+01/01 & Gennaio & 5 \\
+02/01 & Gennaio & 4 \\
+03/01 & Gennaio & \textbf{35} \\
+04/01 & Gennaio & 6 \\
+05/01 & Gennaio & 5 \\
+\hline
+\end{tabular}
+\caption{Esempio di contextual anomaly: 35°C è un valore 
+normale in estate ma anomalo nel contesto di gennaio.}
+\label{tab:contextualAnomaly}
+\end{table}
+
+\subsection{LSTM}
+\textbf{Long Short-Term Memory}, da qui in poi LSTM, è una forma specializzata dell'architettura RNN. Utilizza una struttura interna con \textit{celle di memoria} e tre porte principali (\textit{input}, \textit{forget}, \textit{output}), che regolano il flusso di informazioni. Queste porte decidono cosa ricordare, cosa scartare e cosa trasmettere, permettendo di mantenere dipendenze a lungo termine tra elementi sequenziali. LSTM eccelle nelle reti sequenziali perché preserva lo \textit{stato della cella}, come un nastro trasportatore, evitando la perdita di informazioni su centinaia di step a differenza delle RNN tradizionali.\cite{ALSELWI2024102068}
+
+Nel presente lavoro LSTM viene utilizzato come modello di riferimento per l'analisi della robustezza al rumore sulle serie temporali, in quanto architettura consolidata e ampiamente validata in letteratura per task su dati sequenziali.
 
 
 \end{document}

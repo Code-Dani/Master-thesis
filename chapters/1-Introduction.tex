@@ -6,7 +6,7 @@
 
 \label{chap:Introduction}
 
-\large{\red{da ricontrollare dopo aver finito la tesi}}
+\red{da ricontrollare dopo aver finito la tesi}
 
 Negli ultimi anni, il Deep Learning ha raggiunto risultati straordinari in domini applicativi molto diversi tra loro: dalla classificazione di immagini al riconoscimento del parlato, dal natural language processing alla previsione di serie temporali. Questo progresso è stato guidato in larga misura da innovazioni architetturali, reti sempre più profonde, meccanismi di attenzione, normalizzazioni avanzate e da un accesso crescente a risorse computazionali. Tuttavia, un aspetto fondamentale tende a essere sistematicamente sottovalutato nella letteratura: la qualità dei dati su cui questi modelli vengono addestrati.
 Nella pratica industriale e scientifica, i \textit{dataset raramente} sono \textit{privi di errori}. Valori \textbf{mancanti}, \textbf{duplicati}, \textbf{etichette inconsistenti}, \textbf{rumore numerico}, etc. Nonostante ciò, la maggior parte degli studi valuta le architetture DL su dati puliti o artificialmente bilanciati, rendendo difficile trasferire i risultati ottenuti in laboratorio a contesti applicativi dove la pulizia dei dati non è garantita.\\
@@ -19,7 +19,7 @@ Lo strumento centrale per l'iniezione controllata del rumore è \textbf{PuckTric
 \section{Obiettivi}
 Gli obiettivi specifici della tesi sono i seguenti:
 \begin{enumerate}
-\item Portare i cinque iniettori di rumore di PuckTrick — \textbf{duplicati}, \textbf{etichette} \textbf{inconsistenti}, \textbf{valori mancanti}, \textbf{rumore numerico} e \textbf{outlier} — dall'ecosistema Pandas a PySpark, preservando la semantica originale dei metodi;
+\item Portare i cinque iniettori di rumore di PuckTrick: \textbf{duplicati}, \textbf{etichette} \textbf{inconsistenti}, \textbf{valori mancanti}, \textbf{rumore} e \textbf{outlier}, dall'ecosistema Pandas a PySpark, preservando la semantica originale dei metodi;
 \item Configurare e documentare un ambiente Apache Spark distribuito con architettura master-worker, utilizzato come infrastruttura per l'intera sperimentazione;
 \item Misurare quantitativamente l'impatto di ciascuna tipologia di rumore su modelli DL per dati tabulari (MLP) e per serie temporali (LSTM), attraverso un protocollo sperimentale basato su 20 run con seed diversi e intervalli di confidenza al 95%;
 \item Confrontare la robustezza relativa dei modelli e identificare quali tipologie di errore risultano più destabilizzanti per ciascun dominio.

@@ -1,0 +1,183 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Analisi dataset}
+\label{chap:DatasetAnalysis}
+
+%idea generale
+\section{Setup sperimentale}
+
+Per valutare l'impatto del rumore su modelli deep learning tabulari e applicati a serie temporali, è stato selezionato il dataset \textbf{MetroPT-3} \cite{MetroDT}. Il dataset raccoglie le misurazioni di sensori installati sul sistema pneumatico dei compressori del metrò di Porto (Portogallo) che sono campionate ogni secondo nell'arco di circa sei mesi (febbraio-agosto 2020). Il dataset conta \textbf{1.516.948 righe} e \textbf{17 feature} (più una colonna \texttt{target} generata a partire dal report dei guasti fornito dagli autori in tabella~\ref{tab:reportGuasti}), il cui schema è descritto nella Tabella~\ref{tab:schema-metrodt}.
+
+Il dataset è stato scelto per tre ragioni principali. In primo luogo, è privo di valori mancanti, il che consente di misurare con precisione l'effetto del rumore introdotto artificialmente da Pucktrick, senza interferenze dovute dalla presenza di valori pre-esistenti. In secondo luogo, per la sua natura temporale, che ci permette l'utilizzo di modelli che sfruttano quell'informazione. In terzo luogo, la sua dimensione, la quale giustifica pienamente l'utilizzo del cluster Apache Spark per l'elaborazione distribuita.
+
+Il dataset è distribuito privo di etichette, tuttavia gli autori hanno rilasciato un \textit{report 
+dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \textit{Air Leak} verificatisi nel periodo coperto dal dataset. A partire da questo report è stata generata la colonna \texttt{target} ed è stato assegnato il valore \textbf{1} a tutte le righe il cui timestamp ricade all'interno di uno degli intervalli di guasto, e \textbf{0} a tutte le righe rimanenti. 
+
+
+% tabella schema dataset %
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|l|p{6cm}|}
+\hline
+\textbf{Feature} & \textbf{Tipo} & \textbf{Unità} & \textbf{Descrizione} \\
+\hline
+\texttt{timestamp}        & timestamp & --      & Istante di campionamento \\
+\texttt{TP2}              & double    & bar     & Pressione misurata al pannello pneumatico \\
+\texttt{TP3}              & double    & bar     & Pressione all'uscita del compressore \\
+\texttt{H1}               & double    & bar     & Pressione nella linea di alimentazione \\
+\texttt{DV\_pressure}     & double    & bar     & Pressione sulla valvola di scarico \\
+\texttt{Reservoirs}       & double    & bar     & Pressione nei serbatoi d'aria \\
+\texttt{Oil\_temperature} & double    & °C      & Temperatura dell'olio lubrificante del compressore \\
+\texttt{Motor\_current}   & double    & A       & Corrente assorbita dal motore elettrico \\
+\texttt{COMP}             & double    & --      & Segnale digitale di stato del compressore (on/off) \\
+\texttt{DV\_eletric}      & double    & --      & Segnale digitale della valvola elettrica \\
+\texttt{Towers}           & double    & --      & Segnale digitale sulle torri essiccatori \\
+\texttt{MPG}              & double    & --      & Segnale del pressostato principale \\
+\texttt{LPS}              & double    & --      & Segnale del pressostato di bassa pressione \\
+\texttt{Pressure\_switch} & double    & --      & Segnale del pressostato di sicurezza \\
+\texttt{Oil\_level}       & double    & --      & Segnale digitale del livello dell'olio \\
+\texttt{Caudal\_impulses} & double    & bar     & Impulsi di portata del flusso d'aria \\
+\texttt{target}           & intero    & bit     & Etichetta generata: 1 = guasto in corso, 0 = normale \\
+\hline
+\end{tabular}
+\caption{Schema del dataset MetroPT-3. Le feature digitali (COMP, DV\_eletric, Towers, MPG, 
+LPS, Pressure\_switch, Oil\_level) assumono valori binari 0/1 pur essendo memorizzate come 
+double.}
+\label{tab:schema-metrodt}
+\end{table}
+
+% tabella guasti %
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|l|l|l|}
+\hline
+\textbf{\#} & \textbf{Inizio} & \textbf{Fine} & \textbf{Tipo} \\
+\hline
+1 & 18/04/2020 00:00 & 18/04/2020 23:59 & Air Leak \\
+2 & 29/05/2020 23:30 & 30/05/2020 06:00 & Air Leak \\
+3 & 05/06/2020 10:00 & 07/06/2020 14:30 & Air Leak \\
+4 & 15/07/2020 14:30 & 15/07/2020 19:00 & Air Leak \\
+\hline
+\end{tabular}
+\caption{Report dei guasti fornito dagli autori del dataset MetroPT-3, utilizzato per 
+la generazione della colonna \texttt{target}.}
+\label{tab:reportGuasti}
+\end{table}
+
+\newpage
+
+Il dataset risultante è fortemente sbilanciato: come visibile in Figura~\ref{fig:targetDistribution}, i campioni di guasto rappresentano appena l'\textbf{1,97\%} del totale, riflettendo fedelmente la realtà operativa in cui i guasti sono eventi rari rispetto al normale funzionamento del compressore.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/Results/01_target_distribution.png}
+    \caption{Distribuzione del target}
+    \label{fig:targetDistribution}
+\end{figure}
+
+
+Per via della natura del dataset, la metrica di valutazione principale scelta è l'\textbf{F1-score}, che bilancia precisione e recall ed è più informativa dell'accuracy in presenza di classi sbilanciate, penalizzando in modo esplicito i falsi negativi, ovvero i guasti non rilevati, questo è importante perchè nel nostro caso l'accuracy non è affidabile siccome un modello che predice la classe maggioritaria (target=0) raggiungerebbe il 98\% di accuracy pur non rilevando alcun guasto.
+
+La \textbf{F1-Score} viene calcolata con la media armonica tra precision e recall come in equazione~\ref{eq:f1}:
+
+\begin{align}
+F_1 &= 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}  \label{eq:f1}
+\end{align}
+
+dove la \textit{precision} predice quanti dei guasti predetti erano reali, mentre la \textit{recall} misura quanti dei guasti reali sono stati correttamente identificati.
+
+\newpage
+
+
+\section{Analisi del dataset}
+Prima di costruire qualsiasi modello è fondamentale capire com'è fatto il dataset, che tipo di valore hanno le colonne, se ci sono anomalie e come si comportano i sensori nel tempo. In questa sezione andiamo ad analizzare i risultati ottenuti dall'esplorazione del dataset.
+
+\subsection{Schema}
+Come visibile nella tabella~\ref{tab:schema-metrodt}, la maggioranza delle colonne è di tipo \textit{double}, coerentemente con la natura del dataset che raccoglie misurazioni continue di sensori industriali.Le uniche due eccezioni sono \textit{timestamp} e \textit{target}, rispettivamente di tipo timestamp e categorico intero. E' stato, inoltre, verificata la mancanza di valori null.
+
+Le colonne \texttt{TP2}, \texttt{TP3}, \texttt{H1}, \texttt{Motor\_current} e \texttt{Oil\_temperature} sono analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius), pertanto si è dovuto normalizzarle a valori contenuti in $[0,1]$. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
+
+
+\subsection{Matrice di correlazione}
+
+La matrice di correlazione di Pearson, visibile in figura~\ref{fig:matriceCorrelazione} è stata calcolata su un campione di 100.000 righe, corrispondenti al periodo di febbraio 2020. Queste righe sono interamente senza guasti (target=0), ho ritenuto coerente prendere, per calcolare la matrice, righe senza guasti in quanto la ritengo coerente con l'obbiettivo dell'analisi: stimare le relazioni strutturali tra i sensori nel funzionamento ordinario del compressore. Analizzare la correlazione sul regime normale permette inoltre di identificare quali feature variano in modo indipendente durante il funzionamento atteso — e quindi quali portano informazione non ridondante che il modello potrà sfruttare per discriminare le deviazioni dalla norma.
+Dall'analisi emergono tre osservazioni rilevanti:
+\textbf{Correlazioni elevate tra sensori analogici:} \textit{TP2}, \textit{H1}, \textit{COMP}, \textit{DV\_eletric} e \textit{MPG} presentano correlazioni prossime a $\pm 1$ tra loro, indicando che questi sensori misurano sostanzialmente lo stesso fenomeno da prospettive diverse.
+\textit{Oil\_level} e \textit{Caudal\_impulses} hanno celle vuote, significa che la loro varianza è quasi zero, ovvero sono costanti quasi per tutto il dataset quindi non portano informazioni utili al modello. Queste due colonne sono ottimi condidati per una rimozione manuale dal dataset.
+\textit{DV\_pressure} e \textit{Pressure\_switch} sono correlate negativamente, coerente con il loro significato fisico.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/03_correlation_matrix.png}
+    \caption{Matrice di correlazione}
+    \label{fig:matriceCorrelazione}
+\end{figure}
+
+
+\newpage
+
+\subsection{Andamento temporale}
+Viene adesso mostrato l'andamento temporale normale del compressore prendendo i primi 50.000 campioni (Figura~\ref{fig:andTemporaleNormale}). Come possiamo notare il compressore oscilla correttamente tra valori alti e bassi, indicativo del fatto che va correttamente in pressione e che quindi una volta raggiunta il compressore si spegne per poi riaccendersi solo quando cala.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/02_time_series_sensors.png}
+    \caption{Comportamento del compressore in una finestra senza guasti}
+    \label{fig:andTemporaleNormale}
+\end{figure}
+
+
+Analizzando, invece, una finestra temporale nella quale si è registrato un guasto (Figura~\ref{fig:andTemporaleGuasti}), possiamo notare come i parametri diventano anomali, mostrando il comportamento caratteristico, dove il compressore è perennemente attivo anzichè oscillare e la temperatura dell'olio sempre a valori critici. Questo è indicativo di una fuoriuscita d'aria, infatti se vediamo gli istanti precedenti al momento di stress al motore possiamo notare che TP2, che indica la pressione in bar è a 0.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/02b_fault_window.png}
+    \caption{Comportamento compressore in una finestra con guasti}
+    \label{fig:andTemporaleGuasti}
+\end{figure}
+
+\newpage
+
+
+
+
+\section{Feature Selection}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/04_rf_direct_importance.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/05_auc_comparison.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/06_time_comparison.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/07_tradeoff.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\subsection{Approcci confrontati}
+\subsection{Risultati}
+\subsection{Feature selezionate}
+
+
+\end{document}

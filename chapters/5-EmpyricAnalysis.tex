@@ -5,12 +5,150 @@
 \chapter{Analisi Empirica}
 \label{chap:EmpyricAnalysis}
 
-\section{Analisi}
+%Il rumore introdotto da Pucktrick non mira a replicare scenari reali specifici, ma a valutare in modo controllato e riproducibile la sensibilità dei modelli a diverse tipologie di corruzione dei dati, seguendo la metodologia adottata in \cite{maurino2025data}.
 
-Il rumore introdotto da Pucktrick non mira a replicare 
-scenari reali specifici, ma a valutare in modo controllato 
-e riproducibile la sensibilità dei modelli a diverse 
-tipologie di corruzione dei dati, seguendo la metodologia 
-adottata in \cite{maurino2025data}.
+L'obbiettivo dell'analisi empirica è rispondere in modo empirico e riproducibile alla domanda: \textit{Quali tipologie di rumore risultano più nocive ad un modello deep learning su dataset tabulare?}.
+
+\section{Protocollo sperimentale}
+Questa sezione descrive il protocollo comune a tutti gli esperimenti presentati nel capitolo. Le scelte metodologiche qui descritte si applicano sia a MLP (Sezione~\ref{section:MLP}) sia a LSTM (Sezione~\ref{section:LSTM}.
+
+\subsection{Struttura degli esperimenti}
+Per ogni modello si è deciso di effettuare esecuzioni su quattro dimensioni:
+\begin{itemize}
+    \item \textbf{Tipo di rumore}: \texttt{duplicated}, \texttt{labels}, \texttt{missing}, \texttt{noisy} e \texttt{outliers};
+    
+    \item \textbf{Feature corrotta}: come determinato nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) andremo a introdurre rumore nelle seguenti feature: \texttt{DV\_pressure}, \texttt{Oil\_temperature} e \texttt{TP3};
+    
+    \item \textbf{Percentuale di rumore}: 0\%, 10\%, 20\%, 30\%, 50\%, questa scelta di percentuali ci assicura di avere una base da confrontare pulita e senza rumore;
+    \item \textbf{Seed}: 20 valori distinti per combinazione (da 0 a 19)
+\end{itemize}
+
+
+Ci sono due particolarità da menzionare: Per via della natura del metodo che introduce duplicati (duplicated), questo non verrà valutato su più feature, ma solo su una siccome per design il metodo ignora le feature passate in input dovendo lavorare su righe intere.
+La seconda particolarità è che il metodo per introdurre rumore nelle etichette (label) è stato eseguito solo sul target. Di conseguenza il calcolo delle esecuzioni totali viene effettuato come nella seguente equazione~\ref{eq:total_runs}:
+\begin{equation}
+  \underbrace{2 \times 5 \times 20}_{\texttt{duplicated} + \texttt{labels}}
+  +
+  \underbrace{3 \times 3 \times 5 \times 20}_{\texttt{missing},\, \texttt{noisy},\, \texttt{outliers}}
+  = 200 + 900 = \mathbf{1100 \text{ esecuzioni}}
+  \label{eq:total_runs}
+\end{equation}
+
+\subsection{Dataset}
+Il dataset, con le colonne \textit{Pressure\_switch} e \textit{Oil\_level} rimosse, viene adesso suddiviso in train e test set, tuttavia per garantire coerenza tra i due modelli e quindi poter fare un confronto si è dovuto fare uno split temporale di modo da mantenere l'informazione del tempo. Lo split è dato fatto sulla data \textit{2020-06-01 00:00:00}, questo permette di avere due campioni con target a 1 (guasti) sia nel dataset di train, sia in quello di test. Tuttavia questo beneficio arriva con lo svantaggio che stiamo lavorando con co uno split di $56.6\%$ dataset di train e $43.5\%$ di test.
+
+\subsection{Metriche di valutazione}
+
+\paragraph{F1-score weighted.}
+Già introdotta nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}), andremo ad usare la F1-score come parametro sostitutivo all'accuracy del modello in quanto il dataset scelto \cite{MetroDT} presenta un forte sbilanciamento tra classi.
+
+\paragraph{AUC-ROC.}
+Utilizziamo la AUC-ROC come metrica secondaria alla F1-score, per determinare quanto il modello è in grado di discriminare tra le classi. Un valore pari a 1.0 indica separabilità perfetta, ovvero il modello riesce a distinguere perfettamente tra le due classi; un valore pari a 0.5 è equivalente a una classificazione casuale.
+
+\subsection{Intervallo di confidenza al 95\%}
+Per ogni combinazione citata nell'equazione~\ref{eq:total_runs} abbiamo vengono eseguite $20$ esecuzioni indipendenti, ciascuna di esse con un seed distinto che permette di controllare sia il campionamento di PuckTrick sia l'inizializzazione dei pesi del modello.
+Questo è stato fatto per garantire indipendenza statistica tra le varie esecuzioni e la validità dell'intervallo di confidenza.\\
+
+L'intervallo di confidenza al 95\% è calcolato tramite la distribuzione
+$t$ di Student, adatta a campioni di dimensione ridotta come il nostro (20 esecuzioni per feature).
+Per ogni combinazione (\textit{tipo di rumore} $\times$ \textit{feature}
+$\times$ \textit{percentuale}), siano $x_1, x_2, \ldots, x_{20}$ i valori
+della metrica ottenuti nei 20 run indipendenti ($n$). La media campionaria è:
+\begin{equation}
+  \bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
+  \label{eq:mean}
+\end{equation}
+La deviazione standard campionaria, calcolata con denominatore $n-1$ per
+ottenere uno stimatore non distorto della varianza della popolazione, è:
+\begin{equation}
+  s = \sqrt{\frac{\sum_{i=1}^{n}(x_i - \bar{x})^2}{n-1}}
+  \label{eq:std}
+\end{equation}
+La formula per l'intervallo di confidenza al 95\% è quindi:
+\begin{equation}
+  \mathrm{IC}_{95\%} = \bar{x} \pm t_{0.025,\, n-1} \cdot \frac{s}{\sqrt{n}}
+  \label{eq:CI}
+\end{equation}
+dove $n = 20$, $n - 1 = 19$ sono i gradi di libertà e $t_{0.025,\,19} = 2.093$ è il valore critico ricavato dalla tavola~\cite{student_table} $t$ di Student al livello di significatività del 5\%. Il termine $\frac{s}{\sqrt{n}}$ prende il nome di \textit{errore standard} e misura l'incertezza sulla stima della media: al crescere del numero di run, l'errore standard si riduce e l'intervallo si restringe.
+
+\section{Multilayer Perceptron - MLP}
+\label{section:MLP}
+L'esecuzione del modello con intervallo di confidenza al 95\% ha impiegato circa 16 ore. 
+
+\subsection{Tuning iperparametri su dato pulito}
+Il modello MLP di Spark MLib espone diversi iperparametri che influenza significativamente le performance del modello. Sceglierli in modo arbitrario rischierebbe di introdurre bias nei risultati, dove un modello mal configurato potrebbe degradare, non per il rumore introdotto, ma per via della configurazione.
+
+Gli iperparametri che andremo ad ottimizzare sono riportati nella tabella~\ref{tab:iperparametri} di sotto definita:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|p{6cm}|p{5cm}|}
+        \hline
+        \textbf{Iperparametro} & \textbf{Descrizione} & \textbf{Valori testati} \\
+        \hline
+        \texttt{layers}
+          & Architettura completa della rete & \texttt{[13,32,2]}, \texttt{[13,64,2]}, \texttt{[13,32,16,2]}, \texttt{[13,64,32,16,2]} \\ \hline
+        \texttt{maxIter}
+          & Numero massimo di iterazioni di ottimizzazione & \texttt{50}, \texttt{100} \\ \hline
+        \texttt{stepSize}
+          & Learning rate dell'ottimizzatore L-BFGS & \texttt{0.01}, \texttt{0.05} \\ \hline
+        \texttt{blockSize}
+          & Dimensione del blocco per aggregazione gradienti & \texttt{[128, 256, 512]} \\ \hline
+    \end{tabular}
+    \caption{Tabella iperparametri testati}
+    \label{tab:iperparametri}
+\end{table}
+
+Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossValidation} disponibile nativamente in Spark ha identificato come configurazione ottimale~\ref{lst:best_params}, tra quelle fornite in input, $\texttt{layers} = [13, 64, 2]$, con $\texttt{maxIter} = 100$, $\texttt{stepSize} = 0.05$ e $\texttt{blockSize} = 128$, raggiungendo una baseline F1 di $0.9823$ sul test set pulito.
+
+\begin{lstlisting}[language=xml, caption={Iperparametri ottimali e baseline F1 selezionati dal CrossValidator.}, label={lst:best_params}]
+{
+  "layers":      [13, 64, 2],
+  "maxIter":     100,
+  "stepSize":    0.05,
+  "blockSize":   128,
+  "baseline_f1": 0.9823
+}
+\end{lstlisting}
+
+
+\newpage
+\subsection{Risultati}
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/mlp_auc_degradation.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/mlp_f1_degradation.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/mlp_heatmap_auc.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/mlp_heatmap_degradation.png}
+    \caption{Enter Caption}
+    \label{fig:placeholder}
+\end{figure}
+
+\newpage
+\section{Long Short-Term Memory - LSTM}
+\label{section:LSTM}
 
 \end{document}

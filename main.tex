@@ -1,4 +1,9 @@
-\documentclass[a4paper, oneside]{book}
+\documentclass[a4paper, oneside, openright]{book}
+\usepackage[T1]{fontenc} % Font encoding, T1 = it
+\usepackage[english,italian]{babel} % Lingua principale italiano, con parti in inglese
+\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=3cm,right=3cm]{geometry} %impaginazione e margini documento
+\usepackage[fontsize=13pt]{scrextend} %dimensione font
+
 \usepackage{graphicx} % allows inserting graphics
 \usepackage{listings}
 \usepackage{algpseudocode} % allows code snippets
@@ -12,7 +17,9 @@
 \usepackage{subfiles} % support multiple files
 \usepackage{fancyhdr} % more control on headers and footers
 \usepackage{xcolor}
+\usepackage[active=false]{preview}
 \usepackage{svg}
+\usepackage{amssymb}
 
 
 \newcommand{\red}[1]{\textcolor{red}{#1}}
@@ -54,8 +61,9 @@ scientific documents}}
 \subfile{chapters/1-introduction.tex}
 \subfile{chapters/2-StateOfArt}
 \subfile{chapters/3-DesignAndImplementation}
-\subfile{chapters/4-EmpyricAnalysis}
-\subfile{chapters/5-conclusion}
+\subfile{chapters/4-DatasetAnalysis}
+\subfile{chapters/5-EmpyricAnalysis}
+\subfile{chapters/6-conclusion}
 
 
 % ----------------------

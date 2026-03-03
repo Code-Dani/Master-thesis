@@ -8,7 +8,7 @@
 %idea generale
 \section{Setup sperimentale}
 
-Per valutare l'impatto del rumore su modelli deep learning tabulari e applicati a serie temporali, è stato selezionato il dataset \textbf{MetroPT-3} \cite{MetroDT}. Il dataset raccoglie le misurazioni di sensori installati sul sistema pneumatico dei compressori del metrò di Porto (Portogallo) che sono campionate ogni secondo nell'arco di circa sei mesi (febbraio-agosto 2020). Il dataset conta \textbf{1.516.948 righe} e \textbf{17 feature} (più una colonna \texttt{target} generata a partire dal report dei guasti fornito dagli autori in tabella~\ref{tab:reportGuasti}), il cui schema è descritto nella Tabella~\ref{tab:schema-metrodt}.
+Per valutare l'impatto del rumore su modelli deep learning tabulari e applicati a serie temporali, è stato selezionato il dataset \textbf{MetroPT-3} \cite{MetroDT}. Il dataset raccoglie le misurazioni di sensori installati sul sistema pneumatico dei compressori del metrò di Porto (Portogallo) che sono campionate ogni secondo nell'arco di circa sei mesi (febbraio-agosto 2020). Il dataset conta \textbf{1.516.948 righe} e \textbf{15 feature} (più una colonna \texttt{target} generata a partire dal report dei guasti fornito dagli autori in tabella~\ref{tab:reportGuasti}, una per il \textbf{timestamp}), il cui schema è descritto nella Tabella~\ref{tab:schema-metrodt}.
 
 Il dataset è stato scelto per tre ragioni principali. In primo luogo, è privo di valori mancanti, il che consente di misurare con precisione l'effetto del rumore introdotto artificialmente da Pucktrick, senza interferenze dovute dalla presenza di valori pre-esistenti. In secondo luogo, per la sua natura temporale, che ci permette l'utilizzo di modelli che sfruttano quell'informazione. In terzo luogo, la sua dimensione, la quale giustifica pienamente l'utilizzo del cluster Apache Spark per l'elaborazione distribuita.
 
@@ -23,28 +23,25 @@ dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \t
 \hline
 \textbf{Feature} & \textbf{Tipo} & \textbf{Unità} & \textbf{Descrizione} \\
 \hline
-\texttt{timestamp}        & timestamp & --      & Istante di campionamento \\
-\texttt{TP2}              & double    & bar     & Pressione misurata al pannello pneumatico \\
-\texttt{TP3}              & double    & bar     & Pressione all'uscita del compressore \\
-\texttt{H1}               & double    & bar     & Pressione nella linea di alimentazione \\
-\texttt{DV\_pressure}     & double    & bar     & Pressione sulla valvola di scarico \\
-\texttt{Reservoirs}       & double    & bar     & Pressione nei serbatoi d'aria \\
-\texttt{Oil\_temperature} & double    & °C      & Temperatura dell'olio lubrificante del compressore \\
-\texttt{Motor\_current}   & double    & A       & Corrente assorbita dal motore elettrico \\
-\texttt{COMP}             & double    & --      & Segnale digitale di stato del compressore (on/off) \\
-\texttt{DV\_eletric}      & double    & --      & Segnale digitale della valvola elettrica \\
-\texttt{Towers}           & double    & --      & Segnale digitale sulle torri essiccatori \\
-\texttt{MPG}              & double    & --      & Segnale del pressostato principale \\
-\texttt{LPS}              & double    & --      & Segnale del pressostato di bassa pressione \\
-\texttt{Pressure\_switch} & double    & --      & Segnale del pressostato di sicurezza \\
-\texttt{Oil\_level}       & double    & --      & Segnale digitale del livello dell'olio \\
-\texttt{Caudal\_impulses} & double    & bar     & Impulsi di portata del flusso d'aria \\
-\texttt{target}           & intero    & bit     & Etichetta generata: 1 = guasto in corso, 0 = normale \\
-\hline
+\texttt{timestamp}        & timestamp & --      & Istante di campionamento \\ \hline
+\texttt{TP2}              & double    & bar     & Pressione misurata al pannello pneumatico \\ \hline
+\texttt{TP3}              & double    & bar     & Pressione all'uscita del compressore \\ \hline
+\texttt{H1}               & double    & bar     & Pressione nella linea di alimentazione \\ \hline
+\texttt{DV\_pressure}     & double    & bar     & Pressione sulla valvola di scarico \\ \hline
+\texttt{Reservoirs}       & double    & bar     & Pressione nei serbatoi d'aria \\ \hline
+\texttt{Oil\_temperature} & double    & °C      & Temperatura dell'olio lubrificante del compressore \\ \hline
+\texttt{Motor\_current}   & double    & A       & Corrente assorbita dal motore elettrico \\ \hline
+\texttt{COMP}             & binary    & --      & Segnale digitale di stato del compressore (on/off) \\ \hline
+\texttt{DV\_eletric}      & binary    & --      & Segnale digitale della valvola elettrica \\ \hline
+\texttt{Towers}           & binary    & --      & Segnale digitale sulle torri essiccatori \\ \hline
+\texttt{MPG}              & binary    & --      & Segnale del pressostato principale \\ \hline
+\texttt{LPS}              & binary    & --      & Segnale del pressostato di bassa pressione \\ \hline
+\texttt{Pressure\_switch} & binary    & --      & Segnale del pressostato di sicurezza \\ \hline
+\texttt{Oil\_level}       & binary    & --      & Segnale digitale del livello dell'olio \\ \hline
+\texttt{Caudal\_impulses} & binary    & bar     & Impulsi di portata del flusso d'aria \\ \hline
+\texttt{target}           & binary    & bit     & Etichetta generata: 1 = guasto in corso, 0 = normale \\ \hline
 \end{tabular}
-\caption{Schema del dataset MetroPT-3. Le feature digitali (COMP, DV\_eletric, Towers, MPG, 
-LPS, Pressure\_switch, Oil\_level) assumono valori binari 0/1 pur essendo memorizzate come 
-double.}
+\caption{Schema del dataset MetroPT-3. Le feature digitali assumono valori binari 0/1 pur essendo memorizzate come double. Dunque sono state inserite come binary}
 \label{tab:schema-metrodt}
 \end{table}
 
@@ -73,7 +70,7 @@ Il dataset risultante è fortemente sbilanciato: come visibile in Figura~\ref{fi
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{images/Results/01_target_distribution.png}
+    \includegraphics[width=0.8\linewidth]{images/Results/01_target_distribution.png}
     \caption{Distribuzione del target}
     \label{fig:targetDistribution}
 \end{figure}
@@ -96,18 +93,23 @@ dove la \textit{precision} predice quanti dei guasti predetti erano reali, mentr
 Prima di costruire qualsiasi modello è fondamentale capire com'è fatto il dataset, che tipo di valore hanno le colonne, se ci sono anomalie e come si comportano i sensori nel tempo. In questa sezione andiamo ad analizzare i risultati ottenuti dall'esplorazione del dataset.
 
 \subsection{Schema}
-Come visibile nella tabella~\ref{tab:schema-metrodt}, la maggioranza delle colonne è di tipo \textit{double}, coerentemente con la natura del dataset che raccoglie misurazioni continue di sensori industriali.Le uniche due eccezioni sono \textit{timestamp} e \textit{target}, rispettivamente di tipo timestamp e categorico intero. E' stato, inoltre, verificata la mancanza di valori null.
+Come visibile nella tabella~\ref{tab:schema-metrodt}, la metà delle colonne è di tipo \textit{double}, mentre l'altra nonostante anch'essa viene valutata come double in realtà è categorica, quindi assume 0 o 1 come valori. L'unica eccezione è il \textbf{timestamp} che è di tipo \textit{timestamp}. E' stato, inoltre, verificata la mancanza di valori null.
 
-Le colonne \texttt{TP2}, \texttt{TP3}, \texttt{H1}, \texttt{Motor\_current} e \texttt{Oil\_temperature} sono analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius), pertanto si è dovuto normalizzarle a valori contenuti in $[0,1]$. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
+\textit{TP2, TP3, H1, DV\_Pressure, Reservoirs, Motor\_current, Oil\_temperature} sono colonne analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius), pertanto si è dovuto normalizzarle a valori contenuti in $[0,1]$. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
 
 
 \subsection{Matrice di correlazione}
 
-La matrice di correlazione di Pearson, visibile in figura~\ref{fig:matriceCorrelazione} è stata calcolata su un campione di 100.000 righe, corrispondenti al periodo di febbraio 2020. Queste righe sono interamente senza guasti (target=0), ho ritenuto coerente prendere, per calcolare la matrice, righe senza guasti in quanto la ritengo coerente con l'obbiettivo dell'analisi: stimare le relazioni strutturali tra i sensori nel funzionamento ordinario del compressore. Analizzare la correlazione sul regime normale permette inoltre di identificare quali feature variano in modo indipendente durante il funzionamento atteso — e quindi quali portano informazione non ridondante che il modello potrà sfruttare per discriminare le deviazioni dalla norma.
-Dall'analisi emergono tre osservazioni rilevanti:
-\textbf{Correlazioni elevate tra sensori analogici:} \textit{TP2}, \textit{H1}, \textit{COMP}, \textit{DV\_eletric} e \textit{MPG} presentano correlazioni prossime a $\pm 1$ tra loro, indicando che questi sensori misurano sostanzialmente lo stesso fenomeno da prospettive diverse.
-\textit{Oil\_level} e \textit{Caudal\_impulses} hanno celle vuote, significa che la loro varianza è quasi zero, ovvero sono costanti quasi per tutto il dataset quindi non portano informazioni utili al modello. Queste due colonne sono ottimi condidati per una rimozione manuale dal dataset.
-\textit{DV\_pressure} e \textit{Pressure\_switch} sono correlate negativamente, coerente con il loro significato fisico.
+La matrice di correlazione di Pearson, visibile in figura~\ref{fig:matriceCorrelazione}, è stata calcolata sull'intero dataset di 1.516.948 campioni e include il target come variabile aggiuntiva, consentendo di valutare non solo le relazioni strutturali tra sensori ma anche il loro potere discriminante.\\
+
+Dall'analisi emergono quattro osservazioni rilevanti:
+\textbf{Correlazione perfetta $1$ tra \textit{TP3} e \textit{Reservoirs}:} riflette una proprietà fisica del sistema: per specifica del dataset, la pressione a valle dei serbatoi (\textit{Reservoirs}) è attesa pari alla pressione al pannello pneumatico (\textit{TP3}).\\
+
+\textbf{Cluster del ciclo on/off del compressore:} \textit{TP2}, \textit{H1}, \textit{COMP}, \textit{DV\_eletric} e \textit{MPG} presentano correlazioni reciproche prossime a $\pm 1$, indicando che tutti codificano lo stesso fenomeno — lo stato di accensione/spegnimento ciclico del compressore — da prospettive fisiche diverse.\\
+
+\textbf{\textit{DV\_pressure} come feature più discriminante:} con correlazione positiva di $0.67$ rispetto al target, \textit{DV\_pressure} è la variabile che più si differenzia tra funzionamento normale e stato di guasto, risultato confermato dalla feature importance del Random Forest e non solo, vedi sezione \ref{section:FeatureSelezionate}.\\
+
+\textbf{Feature con potere predittivo basso}: \textit{LPS}, \textit{Pressure\_switch}, \textit{Oil\_level} e \textit{Caudal\_impulses} sono quattro feature che hanno pochissimo impatto sul target, possiamo notarlo dall'indice di correlazione quasi pari a $0$, dunque sono ottime candidate per essere eliminate dal dataset. Tuttavia vedremo successivamente che il modello Random Forest attribuisce. seppur poca, importanza a \textit{LPS} e \textit{Caudal\_impulses}.
 
 \begin{figure}[H]
     \centering
@@ -116,11 +118,11 @@ Dall'analisi emergono tre osservazioni rilevanti:
     \label{fig:matriceCorrelazione}
 \end{figure}
 
-
 \newpage
-
 \subsection{Andamento temporale}
-Viene adesso mostrato l'andamento temporale normale del compressore prendendo i primi 50.000 campioni (Figura~\ref{fig:andTemporaleNormale}). Come possiamo notare il compressore oscilla correttamente tra valori alti e bassi, indicativo del fatto che va correttamente in pressione e che quindi una volta raggiunta il compressore si spegne per poi riaccendersi solo quando cala.
+
+Viene adesso mostrato l'andamento temporale normale del compressore prendendo i primi 50.000 campioni (Figura~\ref{fig:andTemporaleNormale}). Nel funzionamento ordinario il compressore segue un ciclo ben definito: \textit{TP2}, la pressione sul compressore, oscilla tra 0 e 10 bar, indicando
+che il compressore raggiunge la pressione di esercizio, si spegne, e si riaccende solo quando la pressione cala nuovamente. \textit{TP3} e \textit{Motor\_current} seguono lo stesso ritmo ciclico: la corrente alterna tra circa 4A (funzionamento a vuoto) e 6/7A (sotto carico), coerentemente con i valori attesi dalla specifica del sensore. \textit{Oil\_temperature} cresce gradualmente durante le fasi di carico e si stabilizza attorno ai 50/65°C nel regime termico stazionario. \textit{DV\_pressure}, rimane prevalentamente sempre a 0 e conferma che le torri non stanno scaricando: questo è il comportamento atteso durante il funzionamento normale sotto carico.
 
 \begin{figure}[H]
     \centering
@@ -129,8 +131,11 @@ Viene adesso mostrato l'andamento temporale normale del compressore prendendo i 
     \label{fig:andTemporaleNormale}
 \end{figure}
 
-
-Analizzando, invece, una finestra temporale nella quale si è registrato un guasto (Figura~\ref{fig:andTemporaleGuasti}), possiamo notare come i parametri diventano anomali, mostrando il comportamento caratteristico, dove il compressore è perennemente attivo anzichè oscillare e la temperatura dell'olio sempre a valori critici. Questo è indicativo di una fuoriuscita d'aria, infatti se vediamo gli istanti precedenti al momento di stress al motore possiamo notare che TP2, che indica la pressione in bar è a 0.
+Analizzando invece una finestra temporale nella quale si è registrato un guasto (Figura~\ref{fig:andTemporaleGuasti}), tutti i parametri mostrano simultaneamente un comportamento anomalo. Il compressore risulta perennemente attivo anziché oscillare: \textit{TP2} si mantiene costantemente elevata senza scendere a zero, e \textit{Motor\_current} rimane stabilmente intorno a 5/6A senza le normali cadute a vuoto. 
+\textit{Oil\_temperature} sale a valori critici attorno ai 72/80°C, ben oltre il range ordinario, segnalando un surriscaldamento prolungato. 
+Tuttavia, il segnale più rilevante è \textit{DV\_pressure}: durante il guasto abbandona cambia il suo valore di riposo (0) e oscilla continuamente attorno a 1/2 bar, indicando che le torri scaricano aria in modo anomalo e persistente. 
+Questo comportamento, assente nel regime normale e costantemente presente
+durante il guasto, spiega fisicamente perché nella sezione successiva vedremo che \textit{DV\_pressure} raccoglie circa il 33\% della feature importance nel modello Random Forest, risultando il predittore più informativo dell'intero dataset, seguito da \textit{Oil\_temperature} e \textit{TP3}.
 
 \begin{figure}[H]
     \centering
@@ -139,45 +144,108 @@ Analizzando, invece, una finestra temporale nella quale si è registrato un guas
     \label{fig:andTemporaleGuasti}
 \end{figure}
 
+
 \newpage
+\section{Selezione delle feature}
+Prima di procedere con il training dei modelli deep learning, è stata condotta un'analisi sistematica per identificare le feature più informative e ridurre la dimensionalità del dataset. Sono stati confrontati tre approcci distinti, tutti implementati tramite le API di Spark MLlib.
 
-
-
-
-\section{Feature Selection}
-
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/Results/04_rf_direct_importance.png}
-    \caption{Enter Caption}
-    \label{fig:placeholder}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/Results/05_auc_comparison.png}
-    \caption{Enter Caption}
-    \label{fig:placeholder}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/Results/06_time_comparison.png}
-    \caption{Enter Caption}
-    \label{fig:placeholder}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/Results/07_tradeoff.png}
-    \caption{Enter Caption}
-    \label{fig:placeholder}
-\end{figure}
+In questa fase si è scelto di utilizzare l'\textbf{AUC-ROC} come metrica di confronto tra gli approcci, anziché l'F1-score adottato nella valutazione finale. L'AUC-ROC è una metrica \textit{threshold-independent}: misura la capacità discriminativa del modello indipendentemente dalla soglia di classificazione, rendendola più adatta a confrontare sottoinsiemi di feature diversi in fase di selezione, dove l'obiettivo è valutare il potenziale informativo delle feature e non le performance operative del modello. L'F1-score verrà invece utilizzato come metrica principale nella fase sperimentale, dove è necessario fissare una soglia di decisione per simulare condizioni operative realistiche e misurare l'impatto del rumore in termini di guasti effettivamente rilevati.
 
 \subsection{Approcci confrontati}
-\subsection{Risultati}
-\subsection{Feature selezionate}
 
+Il primo approccio consiste nell'utilizzare direttamente il \textbf{Random Forest}, d'ora in avanti \textbf{RF}, per l'addestramento su tutte le 15 feature disponibili e utilizzare la feature importance nativa del modello per identificare le feature più rilevanti. Il modello ha raggiunto un AUC-ROC di 0.9995 in 0.3 minuti.
+
+Come mostrato in Figura~\ref{fig:rfImportance}, le prime tre feature per 
+importanza sono \texttt{DV\_pressure} (0.32), \texttt{Oil\_temperature} (0.28) 
+e \texttt{TP3} (0.13), che da sole coprono circa il 73\% dell'importanza 
+totale. Le feature \texttt{Oil\_level} e 
+\texttt{Pressure\_switch} ottengono invece importanza nulla o trascurabile, 
+confermando quanto già emerso dall'analisi della matrice di correlazione.
+
+Il secondo approccio adotta una pipeline in tre stadi, dove nel primo stadio, abbiamo il \texttt{VarianceThresholdSelector} di Spark, il quale rimuove le 
+feature a bassa varianza, riducendo le 15 feature originali a 13, eliminando 
+\texttt{LPS} e \texttt{Pressure\_switch}. 
+Nel secondo stadio, il \texttt{ChiSqSelector} seleziona le top-10 feature tramite test del chi-quadro, ottenendo: \texttt{TP2}, \texttt{TP3}, \texttt{H1}, \texttt{DV\_pressure}, \texttt{Reservoirs}, \texttt{Oil\_temperature}, \texttt{Motor\_current}, \texttt{COMP}, \texttt{DV\_eletric} e \texttt{Towers}. 
+Nel terzo stadio, un Random Forest addestrato su queste 10 feature raggiunge AUC-ROC 0.9996 in 0.3 minuti.
+
+Il terzo approccio è identico al precedente nel primo e terzo stadio, ma sostituisce il ChiSqSelector con \texttt{UnivariateFeatureSelector}, che seleziona le feature sulla base di test statistici univariati. Significativamente, le 10 feature selezionate risultano identiche a quelle del secondo approccio: \texttt{TP2}, \texttt{TP3}, \texttt{H1}, \texttt{DV\_pressure}, \texttt{Reservoirs}, \texttt{Oil\_temperature}, \texttt{Motor\_current}, \texttt{COMP}, \texttt{DV\_eletric} e \texttt{Towers}. Il modello ha statistiche uguali a quello precedente
+
+\newpage
+\subsection{Risultati e confronto}
+I risultati dei tre approcci sono riassunti nelle Figure~\ref{fig:aucComparison}, 
+\ref{fig:timeComparison} e \ref{fig:tradeoff}. Le differenze in termini di 
+AUC-ROC sono minime e i tempi di training sono praticamente identici. Lo speedup degli approcci con selezione rispetto all'RF diretto è trascurabile, il che indica che su questo dataset la riduzione da 13 a 10 feature non produce un beneficio computazionale apprezzabile.
+
+L'accordo tra ChiSqSelector e UnivariateFeatureSelector nel selezionare 
+esattamente le stesse 10 feature rafforza la validità della selezione in sezione \ref{section:FeatureSelezionate}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/Results/04_rf_direct_importance.png}
+    \caption{Feature importance del Random Forest addestrato su tutte le 15 feature. Le prime tre feature (\texttt{DV\_pressure}, \texttt{Oil\_temperature}, \texttt{TP3}) coprono il 73\% dell'importanza totale.}
+    \label{fig:rfImportance}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/Results/05_auc_comparison.png}
+    \caption{Confronto AUC-ROC tra i tre approcci di feature selection.}
+    \label{fig:aucComparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/Results/06_time_comparison.png}
+    \caption{Confronto dei tempi di training tra i tre approcci.}
+    \label{fig:timeComparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{images/Results/07_tradeoff.png}
+    \caption{Tradeoff AUC vs tempo: il punto ideale è in alto a sinistra, dunque \textit{Var+ChiSq+RF} risulta il più bilanciato tra qualità predittiva e velocità di training, ma la differenza con gli altri modelli è trascurabile.}
+    \label{fig:tradeoff}
+\end{figure}
+
+\newpage
+\subsection{Feature selezionate}
+\label{section:FeatureSelezionate}
+Nonostante le diverse metodologie adottate, la gerarchia delle feature più rilevanti risulta sostanzialmente stabile. Come mostrato nella Tabella~\ref{tab:featureOutput}, le prime quattro feature per importanza sono identiche in tutti e tre gli approcci, a conferma della robustezza della selezione.
+
+%['TP2', 'TP3', 'H1', 'DV_pressure', 'Reservoirs', 'Oil_temperature', 'Motor_current', 'COMP', 'DV_eletric', 'Towers']
+%['TP2', 'TP3', 'H1', 'DV_pressure', 'Reservoirs', 'Oil_temperature', 'Motor_current', 'COMP', 'DV_eletric', 'Towers']
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|}
+    \hline
+    \textbf{Feature} & \textbf{RF diretto (rank)} & \textbf{Var+ChiSq} & \textbf{Var+Univariate} \\
+    
+    \hline
+    \texttt{DV\_pressure}     & 1° (0.3219) & $\checkmark$ & $\checkmark$ \\
+    \texttt{Oil\_temperature} & 2° (0.2802) & $\checkmark$ & $\checkmark$ \\
+    \texttt{TP3}              & 3° (0.1262) & $\checkmark$ & $\checkmark$ \\
+    \texttt{Reservoirs}       & 4° (0.1046) & $\checkmark$ & $\checkmark$ \\
+    \texttt{Motor\_current}   & 5° (0.0483) & $\checkmark$ & $\checkmark$ \\
+    \texttt{H1}               & 6° & $\checkmark$ & $\checkmark$ \\
+    \texttt{TP2}              & 7° & $\checkmark$ & $\checkmark$ \\
+    \texttt{COMP}             & 8° & $\checkmark$ & $\checkmark$ \\
+    \texttt{DV\_eletric}      & 9° & $\checkmark$ & $\checkmark$ \\
+    \hline
+    \texttt{MPG}              & 10° & $\times$ & $\times$ \\
+    \texttt{LPS}              & 11° & $\times$ & $\times$ \\
+    \texttt{Caudal\_impulses} & 12° & $\times$ & $\times$ \\
+    \texttt{Oil\_level}       & 13° (0) & $\times$ & $\times$ \\
+    \hline
+    \texttt{Towers}           & 14° (0) & $\checkmark$ & $\checkmark$ \\
+    \hline
+    \texttt{Pressure\_switch} & 15° (0) & $\times$ & $\times$ \\
+    \hline
+\end{tabular}
+\caption{Confronto tra i tre approcci di feature selection}
+\label{tab:featureOutput}
+\end{table}
+
+La convergenza tra RF diretto, ChiSqSelector e UnivariateFeatureSelector sulle stesse feature rafforza la validità della selezione in quanto identificano lo stesso sottoinsieme informativo. Le feature \texttt{DV\_pressure}, \texttt{Oil\_temperature} e \texttt{TP3} costituiranno pertanto le feature primarie negli esperimenti di robustezza, in quanto candidate ad alta importanza su cui misurare l'impatto del rumore introdotto da Pucktrick, verranno invece eliminate \textit{Pressure\_switch} e \textit{Oil\_level} in quanto tutti e tre gli approcci concordano che non aggiungono alcun tipo di valore informativo. \textit{Towers}, invece, nonostante sia a $0$ su RF non verrà eliminata per due motivi principali: Il primo è che nella matrice di correlazione presenta una correlazione negativa con il target di $-0.22$, il secondo motivo è che ChiSqSelector e UnivariateFeatureSelector l'hanno mantenuta all'interno delle dieci feature più informative
 
 \end{document}

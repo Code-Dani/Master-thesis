@@ -116,20 +116,39 @@ Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossVa
 \subsection{Risultati}
 
 I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore \textit{labels} introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti.
-In immagine~\ref{fig}
+Tutti i risultati sono stati riportati nelle tabelle~\ref{tab:mlp_duplicated}, ~\ref{tab:mlp_labels}, ~\ref{tab:mlp_missing}, ~\ref{tab:mlp_noisy} e~\ref{tab:mlp_outliers}.
+\paragraph{Labels:} come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:MLP_heatmap_auc} il rumore derivato dal metodo \textit{labels}, applicato al target del dataset, produce la degradazione più severa tra tutti i tipi di rumore testati. L'F1-score al 50\% di rumore crolla da una baseline $0.9751$  fino ad arrivare a $0.6166$, l'AUC-ROC invece, riflette fin da subito il deterioramento del dataset e già il 10\% del dataset sporcato con il rumore introdotto da label è abbastanza per far crollare la metrica da una baseline di $0.9589$ al valore $0.7897$.
+
+\paragraph{Duplicated:} come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:MLP_heatmap_auc} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti la F1-score rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline $0.9743$. Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$ rispetto la stessa baseline.
+
+%Non so come mettere giù i risultati discordanti per le feature
+
+\subsubsection{F1-score:}
+
+\subsubsection{AUC-ROC:}
+
+Ci sono diverse possibili cause per la discrepanza tra le feature, in particolare possiamo notare dalle immagini~\ref{fig:AUC-scoreRumore} che per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} la metrica che degrada maggiormente è \textbf{Oil_temperature}. Il motivo per il quale le perfomance non degradano per le altre due feature come invece fa per \textbf{Oil_temperature} è probabilmente dovuto a proprietà intrinsece del dataset che non sono state presei in considerazione durante l'operazione di analisi del dataset.
+\paragraph{DV_Pressure:} questa è l'unica metrica digitale tra le tre, ma la cosa che la contraddistingue maggiormente, come citato nella documentazione del dataset~\cite{MetroDT} è che presenta sempre un valore pari a 0 e cambia valore solo se è presente un guasto, indicando, come spiegato nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) un cambio di pressione anomalo. Come possiamo vedere in figura~\ref{fig:featureDistribution} la sua distribuzione è netta e distinta, ma più importante passa da 0 a 5
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{images/Results/mlp_auc_degradation.png}
+    \includegraphics[width=1\linewidth]{images/Results/feature_distributions.png}
+    \caption{Enter Caption}
+    \label{fig:featureDistribution}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/mlp_f1_degradation.png}
     \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice F1-score}
     \label{fig:F1-scoreRumore}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{images/Results/mlp_f1_degradation.png}
-    \caption{Enter Caption}
-    \label{fig:placeholder}
+    \includegraphics[width=1\linewidth]{images/Results/mlp_auc_degradation.png}
+    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice AUC-ROC}
+    \label{fig:AUC-scoreRumore}
 \end{figure}
 
 
@@ -137,7 +156,7 @@ In immagine~\ref{fig}
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_heatmap_auc.png}
     \caption{Enter Caption}
-    \label{fig:placeholder}
+    \label{fig:MLP_heatmap_auc}
 \end{figure}
 
 
@@ -145,11 +164,144 @@ In immagine~\ref{fig}
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_heatmap_degradation.png}
     \caption{Enter Caption}
-    \label{fig:placeholder}
+    \label{fig:MLP_heatmap_degradation}
 \end{figure}
+
+\newpage
+\subsection{Tabelle di riferimento per MLP}
+
+% -- TABELLE ---
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+0\%  & Row based & $0.9743 \pm 0.0022$ & $0.9596 \pm 0.0079$ \\
+10\% & Row based & $0.9740 \pm 0.0025$ & $0.9599 \pm 0.0070$ \\
+20\% & Row based & $0.9734 \pm 0.0024$ & $0.9557 \pm 0.0092$ \\
+30\% & Row based & $0.9745 \pm 0.0026$ & $0.9593 \pm 0.0071$ \\
+50\% & Row based & $0.9746 \pm 0.0023$ & $0.9549 \pm 0.0067$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, rumore dal metodo \textit{duplicated}.}
+\label{tab:mlp_duplicated}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+0\%  & Target & $0.9751 \pm 0.0022$ & $0.9589 \pm 0.0084$ \\
+10\% & Target & $0.9587 \pm 0.0006$ & $0.7897 \pm 0.1046$ \\
+20\% & Target & $0.9685 \pm 0.0031$ & $0.7359 \pm 0.1277$ \\
+30\% & Target & $0.9751 \pm 0.0025$ & $0.6940 \pm 0.1514$ \\
+50\% & Target & $\mathbf{0.6166 \pm 0.0741}$ & $\mathbf{0.5119 \pm 0.1889}$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, rumore dal metodo \textit{labels}.}
+\label{tab:mlp_labels}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+0\%  & DV\_pressure     & $0.9749 \pm 0.0020$ & $0.9587 \pm 0.0084$ \\
+10\% & DV\_pressure     & $0.9829 \pm 0.0012$ & $0.9434 \pm 0.0111$ \\
+20\% & DV\_pressure     & $0.9791 \pm 0.0027$ & $0.9316 \pm 0.0148$ \\
+30\% & DV\_pressure     & $0.9806 \pm 0.0028$ & $0.9445 \pm 0.0098$ \\
+50\% & DV\_pressure     & $0.9804 \pm 0.0025$ & $0.9334 \pm 0.0135$ \\
+\midrule
+0\%  & Oil\_temperature & $0.9747 \pm 0.0022$ & $0.9590 \pm 0.0080$ \\
+10\% & Oil\_temperature & $0.9692 \pm 0.0039$ & $0.9105 \pm 0.0171$ \\
+20\% & Oil\_temperature & $0.9640 \pm 0.0033$ & $0.8935 \pm 0.0215$ \\
+30\% & Oil\_temperature & $0.9616 \pm 0.0017$ & $0.8400 \pm 0.0386$ \\
+50\% & Oil\_temperature & $0.9595 \pm 0.0010$ & $\mathbf{0.8137 \pm 0.0487}$ \\
+\midrule
+0\%  & TP3             & $0.9752 \pm 0.0023$ & $0.9591 \pm 0.0083$ \\
+10\% & TP3             & $0.9724 \pm 0.0025$ & $0.9602 \pm 0.0067$ \\
+20\% & TP3             & $0.9757 \pm 0.0021$ & $0.9619 \pm 0.0051$ \\
+30\% & TP3             & $0.9752 \pm 0.0026$ & $0.9581 \pm 0.0070$ \\
+50\% & TP3             & $0.9732 \pm 0.0029$ & $0.9524 \pm 0.0102$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, rumore dal metodo \textit{missing}.}
+\label{tab:mlp_missing}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+0\%  & DV\_pressure     & $0.9754 \pm 0.0023$ & $0.9600 \pm 0.0081$ \\
+10\% & DV\_pressure     & $0.9706 \pm 0.0035$ & $0.9620 \pm 0.0061$ \\
+20\% & DV\_pressure     & $0.9757 \pm 0.0034$ & $0.9531 \pm 0.0126$ \\
+30\% & DV\_pressure     & $0.9757 \pm 0.0034$ & $0.9548 \pm 0.0180$ \\
+50\% & DV\_pressure     & $0.9777 \pm 0.0032$ & $0.9695 \pm 0.0080$ \\
+\midrule
+0\%  & Oil\_temperature & $0.9754 \pm 0.0022$ & $0.9594 \pm 0.0077$ \\
+10\% & Oil\_temperature & $0.9654 \pm 0.0032$ & $0.9370 \pm 0.0118$ \\
+20\% & Oil\_temperature & $0.9628 \pm 0.0026$ & $0.9186 \pm 0.0114$ \\
+30\% & Oil\_temperature & $0.9594 \pm 0.0007$ & $0.9038 \pm 0.0190$ \\
+50\% & Oil\_temperature & $0.9583 \pm 0.0004$ & $0.8834 \pm 0.0256$ \\
+\midrule
+0\%  & TP3             & $0.9754 \pm 0.0023$ & $0.9584 \pm 0.0083$ \\
+10\% & TP3             & $0.9737 \pm 0.0030$ & $0.9634 \pm 0.0083$ \\
+20\% & TP3             & $0.9712 \pm 0.0022$ & $0.9655 \pm 0.0070$ \\
+30\% & TP3             & $0.9732 \pm 0.0030$ & $0.9658 \pm 0.0077$ \\
+50\% & TP3             & $0.9717 \pm 0.0027$ & $0.9682 \pm 0.0053$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, rumore dal metodo \textit{noisy}.}
+\label{tab:mlp_noisy}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+0\%  & DV\_pressure     & $0.9743 \pm 0.0024$ & $0.9587 \pm 0.0082$ \\
+10\% & DV\_pressure     & $0.9790 \pm 0.0027$ & $0.9480 \pm 0.0085$ \\
+20\% & DV\_pressure     & $0.9792 \pm 0.0026$ & $0.9399 \pm 0.0104$ \\
+30\% & DV\_pressure     & $0.9786 \pm 0.0033$ & $0.9277 \pm 0.0155$ \\
+50\% & DV\_pressure     & $0.9768 \pm 0.0038$ & $0.9263 \pm 0.0168$ \\
+\midrule
+0\%  & Oil\_temperature & $0.9752 \pm 0.0022$ & $0.9591 \pm 0.0084$ \\
+10\% & Oil\_temperature & $0.9631 \pm 0.0028$ & $0.9336 \pm 0.0130$ \\
+20\% & Oil\_temperature & $0.9620 \pm 0.0020$ & $0.9253 \pm 0.0160$ \\
+30\% & Oil\_temperature & $0.9603 \pm 0.0014$ & $0.8990 \pm 0.0221$ \\
+50\% & Oil\_temperature & $0.9591 \pm 0.0006$ & $0.8866 \pm 0.0203$ \\
+\midrule
+0\%  & TP3             & $0.9753 \pm 0.0021$ & $0.9585 \pm 0.0085$ \\
+10\% & TP3             & $0.9756 \pm 0.0030$ & $0.9591 \pm 0.0095$ \\
+20\% & TP3             & $0.9726 \pm 0.0028$ & $0.9558 \pm 0.0125$ \\
+30\% & TP3             & $0.9727 \pm 0.0032$ & $0.9581 \pm 0.0084$ \\
+50\% & TP3             & $0.9716 \pm 0.0030$ & $0.9575 \pm 0.0081$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, rumore dal metodo \textit{outliers}.}
+\label{tab:mlp_outliers}
+\end{table}
+
 
 \newpage
 \section{Long Short-Term Memory - LSTM}
 \label{section:LSTM}
+
+
 
 \end{document}

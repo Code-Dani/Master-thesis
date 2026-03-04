@@ -127,13 +127,33 @@ Tutti i risultati sono stati riportati nelle tabelle~\ref{tab:mlp_duplicated}, ~
 
 \subsubsection{AUC-ROC:}
 
-Ci sono diverse possibili cause per la discrepanza tra le feature, in particolare possiamo notare dalle immagini~\ref{fig:AUC-scoreRumore} che per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} la metrica che degrada maggiormente è \textbf{Oil_temperature}. Il motivo per il quale le perfomance non degradano per le altre due feature come invece fa per \textbf{Oil_temperature} è probabilmente dovuto a proprietà intrinsece del dataset che non sono state presei in considerazione durante l'operazione di analisi del dataset.
-\paragraph{DV_Pressure:} questa è l'unica metrica digitale tra le tre, ma la cosa che la contraddistingue maggiormente, come citato nella documentazione del dataset~\cite{MetroDT} è che presenta sempre un valore pari a 0 e cambia valore solo se è presente un guasto, indicando, come spiegato nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) un cambio di pressione anomalo. Come possiamo vedere in figura~\ref{fig:featureDistribution} la sua distribuzione è netta e distinta, ma più importante passa da 0 a 5
+Ci sono diverse possibili cause per la discrepanza tra le feature, in particolare possiamo notare dalle immagini~\ref{fig:AUC-scoreRumore} che per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} la metrica che degrada maggiormente è \textbf{Oil\_temperature}. Il motivo per il quale le perfomance non degradano per le altre due feature come invece fa per \textbf{Oil\_temperature} è probabilmente dovuto a proprietà intrinsece del dataset che non sono state presei in considerazione durante l'operazione di analisi del dataset.
+
+\paragraph{DV\_Pressure:} questa è l'unica metrica digitale tra le tre, ma la cosa che la contraddistingue maggiormente, come citato nella documentazione del dataset~\cite{MetroDT} è che presenta sempre un valore pari a $0$ e cambia valore solo se è presente un guasto, indicando, come spiegato nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) un cambio di pressione anomalo. Come possiamo vedere in figura~\ref{fig:featureDistribution} la sua distribuzione è netta e distinta, passando da $0$ ad un valore superiore, in questo caso $5$, avendo una distribuzione di questo tipo la feature è praticamente un interruttore binario e per questo il modello reagisce bene. Tuttavia per i rumori introdotti da \textit{outlier} e \textit{missing}, i valori sono al di sotto dell'intervallo di confidenza, indicando un degrado nonostante in termini di valori assoluti non sia fin da subito visibile. Per \textit{noisy} invece la situazione è diversa, infatti vediamo che il modello non è stato impatto per niente dal rumore applicato, ma questo è spiegabile anche dal fatto che il 98\% dei dati della feature sono zeri (senza guasti), mentre il restante sono valori maggiori di zero. Il noisy della libreria PuckTrick~\cite{agostini2025pucktricklibrarymakingsynthetic} utilizza la seguente formula~\ref{lst:noisy_formula}:
+
+\begin{listing}[H]
+\begin{minted}{python}
+if isinstance(dtype, (IntegerType, LongType)):
+    # Integer
+    random_val = F.cast(F.rand() * (max_val - min_val) + min_val, "int")
+else:
+    # Float/Double
+    random_val = F.rand() * (max_val - min_val) + min_val
+\end{minted}
+\caption{Logica interna per la generazione del rumore nel metodo Noisy di PuckTrick applicato a colonne numeriche}
+\label{lst:noisy_formula}
+\end{listing}
+
+Dove \texttt{F.rand()\footnote{\url{https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.rand.html}}} restituisce un valore uniforme in $[0.0, 1.0)$.
+
+%vedere come continuare%
+\red{Quindi ddwadalawldawdal}
+
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/feature_distributions.png}
-    \caption{Enter Caption}
+    \caption{Distribuzione dei valori delle feature per le colonne \textit{DV\_pressure} e \textit{Oil\_temperature}}
     \label{fig:featureDistribution}
 \end{figure}
 

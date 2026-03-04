@@ -99,7 +99,7 @@ Gli iperparametri che andremo ad ottimizzare sono riportati nella tabella~\ref{t
     \label{tab:iperparametri}
 \end{table}
 
-Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossValidation} disponibile nativamente in Spark ha identificato come configurazione ottimale~\ref{lst:best_params}, tra quelle fornite in input, $\texttt{layers} = [13, 64, 2]$, con $\texttt{maxIter} = 100$, $\texttt{stepSize} = 0.05$ e $\texttt{blockSize} = 128$, raggiungendo una baseline F1 di $0.9823$ sul test set pulito.
+Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossValidation} disponibile nativamente in Spark ha identificato come configurazione ottimale~\ref{lst:best_params}, tra quelle fornite in input, $\texttt{layers} = [13, 64, 2]$, con $\texttt{maxIter} = 100$, $\texttt{stepSize} = 0.05$ e $\texttt{blockSize} = 128$.
 
 \begin{lstlisting}[language=xml, caption={Iperparametri ottimali e baseline F1 selezionati dal CrossValidator.}, label={lst:best_params}]
 {
@@ -115,13 +115,14 @@ Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossVa
 \newpage
 \subsection{Risultati}
 
-
+I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore \textit{labels} introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti.
+In immagine~\ref{fig}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_auc_degradation.png}
-    \caption{Enter Caption}
-    \label{fig:placeholder}
+    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice F1-score}
+    \label{fig:F1-scoreRumore}
 \end{figure}
 
 \begin{figure}[H]

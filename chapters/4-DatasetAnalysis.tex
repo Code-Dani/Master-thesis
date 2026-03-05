@@ -101,9 +101,9 @@ Come visibile nella tabella~\ref{tab:schema-metrodt}, la metà delle colonne è 
 \subsection{Matrice di correlazione}
 
 La matrice di correlazione di Pearson, visibile in figura~\ref{fig:matriceCorrelazione}, è stata calcolata sull'intero dataset di 1.516.948 campioni e include il target come variabile aggiuntiva, consentendo di valutare non solo le relazioni strutturali tra sensori ma anche il loro potere discriminante.\\
-
+\label{section:AnalisiCorrelazionePerfettaTP3Reservoir}
 Dall'analisi emergono quattro osservazioni rilevanti:
-\textbf{Correlazione perfetta $1$ tra \textit{TP3} e \textit{Reservoirs}:} riflette una proprietà fisica del sistema: per specifica del dataset, la pressione a valle dei serbatoi (\textit{Reservoirs}) è attesa pari alla pressione al pannello pneumatico (\textit{TP3}).\\
+\textbf{Correlazione perfetta $1$ tra \textit{TP3} e \textit{Reservoirs}:} riflette una proprietà fisica del sistema: per specifica del dataset, la pressione a valle dei serbatoi (\textit{Reservoirs}) è attesa pari alla pressione al pannello pneumatico (\textit{TP3}). In particolare, \textit{Reservoir} è un serbatoio contenente aria compressa che può essere usata on-demand dalla metro per le sue utenze pneumatiche, quindi è atteso che la pressione all'interno del serbatoio sia approssimativamente pari alla pressione in uscita dal pannello pneumatico (\textit{TP3}).\\
 
 \textbf{Cluster del ciclo on/off del compressore:} \textit{TP2}, \textit{H1}, \textit{COMP}, \textit{DV\_eletric} e \textit{MPG} presentano correlazioni reciproche prossime a $\pm 1$, indicando che tutti codificano lo stesso fenomeno — lo stato di accensione/spegnimento ciclico del compressore — da prospettive fisiche diverse.\\
 

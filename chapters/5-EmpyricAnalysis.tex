@@ -124,9 +124,15 @@ e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, appli
 \paragraph{Duplicated:} come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti la F1-score rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline (Tabella~\ref{tab:mlp_baseline}). Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$.
 
 
-\subsubsection{F1-Score:}
-%Non so come mettere giù i risultati discordanti per le feature
+\subsubsection{F1-Score}
 
+Il calcolo è effettuato tramite \texttt{MulticlassClassificationEvaluator} di Spark MLlib con \texttt{metricName="f1"}, che restituisce il F1-score pesato per il supporto di classe (\textit{weighted}), equivalente ad \texttt{average="weighted"} in scikit-learn~\cite{scikit-learn}.
+
+Il F1-score weighted si mantiene complessivamente stabile all'aumentare della percentuale di rumore per quasi tutte le tipologie di corruzione testate. A 50\% di rumore, la degradazione massima osservata su \texttt{Missing}, \texttt{Noisy} e \texttt{Outliers} è di $0.0167$ punti rispetto alla baseline ($0.9750 \pm 0.0007$), registrata per \texttt{Noisy} su \texttt{Oil\_temperature} (Tabella~\ref{tab:mlp_noisy}), con intervalli di confidenza al 95\% che si sovrappongono quasi interamente a quelli della condizione pulita.
+
+Tuttavia, questa stabilità non deve essere interpretata come robustezza del modello, ma come un artefatto della distribuzione delle classi nel dataset MetroPT-3. Il F1-score weighted pondera il contributo di ciascuna classe in proporzione al suo supporto: con il 98\% dei campioni appartenenti alla classe \textit{Senza guasti}, la metrica è strutturalmente dominata da essa. Una degradazione nella capacità discriminativa del modello sulla classe \textit{Guasto} viene quindi assorbita dal peso preponderante della classe maggioritaria, risultando di fatto invisibile nella metrica aggregata. Per questo motivo, l'AUC-ROC, che misura la qualità del ranking indipendentemente dalla distribuzione delle classi, costituirà la metrica primaria di questa analisi, mentre il F1-score weighted viene mantenuto come misura di stabilità globale del modello.
+
+L'unica eccezione a questo pattern è il rumore di tipo \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo. A differenza degli altri tipi di corruzione, il rumore sulle etichette altera direttamente il segnale di supervisione durante il training: il modello non riceve più informazioni corrette sulla classe target, indipendentemente dalla qualità delle feature in ingresso. Questo porta a una degradazione che non può essere mascherata dalla distribuzione sbilanciata delle classi, producendo un crollo del F1-score da $0.9750 \pm 0.0007$ a $0.6166 \pm 0.0741$ al 50\% di rumore (Tabella~\ref{tab:mlp_labels}).
 
 \subsubsection{AUC-ROC:}
 Ci sono diverse possibili cause per la discrepanza tra le feature, in particolare possiamo notare dalle immagini~\ref{fig:AUC-scoreRumore} che per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} la metrica che degrada maggiormente è \textbf{Oil\_temperature}. Il motivo per il quale le performance non degradano per le altre due feature come invece fa per \textbf{Oil\_temperature} è probabilmente dovuto a proprietà intrinseche del dataset che non sono state prese in considerazione durante l'operazione di analisi del dataset.
@@ -195,6 +201,10 @@ questa feature non dispone di alcuna proprietà strutturale che ne attenui l'imp
 %\end{figure}
 
 \newpage
+
+
+
+
 
 \subsection{Tabelle di riferimento per MLP}
 

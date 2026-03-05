@@ -164,7 +164,6 @@ Per questo motivo l'ipotesi più plausibile è che il modello abbia determinato 
 questa feature non dispone di alcuna proprietà strutturale che ne attenui l'impatto della corruzione. Non è un quasi-binario come \textit{DV\_pressure}, né possiede una feature correlata che il modello usa come sostituto come accade, invece, per \textit{TP3} con \textit{Reservoir}. Il modello dipende quindi direttamente dai suoi valori per la discriminazione tra le classi, rendendo questa feature la più vulnerabile alla corruzione: l'AUC degrada da una baseline di $0.9591$ fino a $0.8137 \pm 0.0487$ con il metodo \textit{missing} al 50\%, fino a $0.8834 \pm 0.0256$ e fino a $0.8866 \pm 0.0203$, rispettivamente per \textit{noisy} e \textit{outliers} alla stessa percentuale (Tabelle~\ref{tab:mlp_baseline}, \ref{tab:mlp_missing}, \ref{tab:mlp_noisy}, \ref{tab:mlp_outliers}).
 
 
-
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_f1_degradation.png}

@@ -324,7 +324,107 @@ Su ciascun worker è stato aggiunto il mount permanente in \textit{/etc/fstab}, 
 
 Grazie a questa configurazione, il driver scrive i dataset nella directory condivisa e tutti i worker li leggono dallo stesso path, rendendo trasparente la distribuzione dei dati all'interno del cluster senza necessità di copie esplicite tra i nodi.
 
+%------------------------------------------------------------------------
+%------------------------------------------------------------------------
+\newpage
 
+\section{Analisi delle performance}
+\label{sec:analisi_performance}
+
+Una volta completata la configurazione del cluster, è stata condottaun'analisi sistematica delle performance del backend Spark rispetto albackend Pandas, con l'obiettivo di quantificare i vantaggi e i limitidell'approccio distribuito in funzione del tipo di operazione e delvolume dei dati.
+
+\subsection{Benchmark: Pandas vs Spark}
+\label{subsec:benchmark}
+
+
+\subsubsection{Protocollo sperimentale}
+
+Il benchmark è stato eseguito su un dataset sintetico contenente\textbf{1.000.000 di righe} con colonne di tipologia eterogenea,descritte in Tabella~\ref{tab:fake_dataset}. La scelta di includere tipidi dato diversi è fondamentale per l'interpretazione dei risultati,poiché il tipo della colonna influenza in modo determinante leperformance dei due backend.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Colonna} & \textbf{Tipo} & \textbf{Descrizione} \\
+\midrule
+\texttt{f1}     & float      & Colonna numerica continua \\
+\texttt{f2}     & int        & Colonna numerica intera \\
+\texttt{f3}     & string     & Colonna categorica con 3 classi \\
+\texttt{f4}     & string     & Colonna categorica con 3 classi \\
+\texttt{f5}     & int        & Colonna categorica con 6 classi \\
+\texttt{date}   & date       & Colonna di tipo data \\
+\texttt{target} & binary     & Colonna target binaria \\
+\bottomrule
+\end{tabular}
+\caption{Schema del dataset sintetico utilizzato per il benchmark 
+Pandas vs Spark.}
+\label{tab:fake_dataset}
+\end{table}
+
+Ciascun metodo di iniezione del rumore è stato eseguito su ogni colonna singolarmente, applicando la medesima strategia per entrambi i backend, con percentuale di corruzione fissata al 50\%. Le esecuzioni sono state condotte in modo sequenziale, con pulizia della memoria tra un'esecuzione e l'altra, e i tempi sono stati misurati e salvati per ciascuna combinazione metodo--colonna--backend.
+
+\paragraph{Nota sul metodo \texttt{labels}.} Il metodo \texttt{labels} è stato eseguito esclusivamente sulle colonne categoriche e binarie (\texttt{f3}, \texttt{f4}, \texttt{f5}, \texttt{target}), in quanto supporta soltanto target di tipo binario o categorico.
+\newpage
+\subsubsection{Risultati}
+
+I risultati, visibili in Figura~\ref{fig:Risultatiraggrupatiperbackend}, mostrano chiaramente due gruppi di comportamento distinti in funzione della complessità computazionale del metodo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{pucktrick_conversion_results/Images/full-runs.png}
+    \caption{Tempi di esecuzione raggrupati per backend e per metodo 
+    su dataset da 1.000.000 di righe.}
+    \label{fig:Risultatiraggrupatiperbackend}
+\end{figure}
+
+\paragraph{Metodi a bassa complessità computazionale:}
+Per i metodi \textit{duplicated} e \textit{missing} il backend Pandas risulta costantemente più veloce rispetto a Spark (su un dataset di 1.000.000 righe). Questo risultato, apparentemente controintuitivo su un dataset da un milione di righe, è spiegabile con l'\textbf{overhead strutturale} del framework Spark: per ogni esecuzione vengono sempre sostenuti i costi fissi di compilazione del piano di esecuzione, serializzazione dei dati tra il driver Python e la JVM, gestione delle partizioni e coordinamento distribuito. Tali costi, stimabili in circa $\pm 1.5$ secondi, non vengono ammortizzati da alcun guadagno di parallelizzazione quando l'operazione sottostante è intrinsecamente semplice.
+
+È inoltre osservabile come la prima esecuzione di ciascun metodo Spark sulla colonna \texttt{f1} risulti sensibilmente più lenta rispetto alle successive, fenomeno attribuibile al \textit{warm-up} della JVM e alla compilazione JIT (\textit{Just-In-Time}) del bytecode durante la prima invocazione.
+
+\newpage
+
+\paragraph{Metodi ad alta complessità computazionale: } Per i metodi \texttt{noisy}, 
+\texttt{outliers} e \texttt{labels} emerge una netta differenza tra i due backend, con Spark significativamente più veloce di Pandas su tutti i tipi di colonna. Nel backend Pandas si osserva una gerarchia di tempi proporzionale al tipo di dato:$$\text{float} < \text{int} < \text{string} < \text{date}$$I tempi Spark, al contrario, sono \textbf{straordinariamente uniformi} attraverso tutti i tipi di dato, con valori compresi tra 2 e 8 secondi indipendentemente dalla colonna. Questa uniformità è una conseguenza diretta del paradigma colonnare di Spark, dove tutte le operazioni vengono compilate in piani di esecuzione nativi JVM ed eseguite sulle partizioni in parallelo, senza transitare per l'interprete Python e senza subire il costo differenziale dei tipi di dato che penalizza Pandas.
+
+L'unica eccezione è rappresentata dalla colonna \texttt{date} nel metodo \texttt{noisy} (circa 60 secondi), riconducibile a un'implementazione non ottimizzata per la gestione delle date nel backend Spark, che riproduce fedelmente la logica Pandas senza sfruttare appieno le primitive native di Spark per i tipi temporali.
+
+In sintesi, a 1.000.000 di righe Spark è già vantaggioso per \texttt{noisy}, \texttt{outliers} e \texttt{labels} su tutti i tipi di colonna, mentre per \texttt{duplicated} e \texttt{missing} il punto di pareggio si colloca a volumi di dati superiori, dove l'overhead fisso diventa trascurabile rispetto al tempo di elaborazione.
+
+\subsection{Stress test su cluster remoto}
+\label{subsec:stress_test}
+
+Per valutare il comportamento del backend Spark al crescere del volume dei dati, è stato condotto uno stress test sul cluster remoto utilizzando il metodo \texttt{duplicated}, applicando la strategia riportata nel Codice~\ref{lst:stress_strategy} su dataset di dimensioni raddoppiate progressivamente, da 1 a 128 milioni di righe.
+
+\begin{listing}[H]
+\begin{minted}[fontsize=\small, frame=single]{json}
+{
+  "affected_features": ["f1"],
+  "mode": "new",
+  "percentage": 0.5,
+  "perturbate_data": { "distribution": "random" },
+  "selection_criteria": "all"
+}
+\end{minted}
+\caption{Strategia di corruzione utilizzata per lo stress test, 
+applicata coerentemente in tutte le 8 iterazioni.}
+\label{lst:stress_strategy}
+\end{listing}
+
+I risultati mostrano un comportamento di scalabilità sostanzialmente lineare, visibile in Figura~\ref{fig:sparkProgressivo}. Partendo da circa 3.6 secondi per 1 milione di righe, il tempo per singola iterazione raddoppia progressivamente al raddoppiare del dataset, raggiungendo circa 84.6 secondi per 128 milioni di righe.
+
+Le prime tre iterazioni (1M, 2M, 4M di righe) presentano tempi molto simili tra loro, $\pm 3.5$ secondi. A partire dagli 8 milioni di righe il comportamento diventa proporzionale al dato, con la curva che scala in modo quasi perfettamente lineare senza segnali di colli di bottiglia anomali, collisioni di shuffle o degrado delle risorse del cluster fino a 128 milioni di righe.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{pucktrick_conversion_results/Images/SparkProgressivo.jpg}
+    \caption{Comportamento del backend Spark al crescere della 
+    dimensione del dataset, da 1 a 128 milioni di righe. La curva 
+    scala in modo pressoché lineare a partire dagli 8 milioni di righe.}
+    \label{fig:sparkProgressivo}
+\end{figure}
+
+Il metodo si dimostra pertanto scalabile e prevedibile su cluster remoto, con un tempo totale di circa 173.6 secondi per l'intera suite da 128 milioni di righe. Questi risultati confermano l'adeguatezza del backend Spark per il piano sperimentale descritto nel Capitolo~\ref{chap:EmpyricAnalysis}, dove l'iniezione del rumore viene applicata ripetutamente su dataset da oltre 1.5 milioni di righe.
 
 
 \end{document}

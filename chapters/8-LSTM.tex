@@ -1,0 +1,115 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Long Short-Term Memory - LSTM}
+\label{chap:LSTM}
+\section{Tuning iperparametri su dato pulito}
+La colonna timestamp è stata usata per ordinare il dataset in base all'informazione temporale, ma successivamente è stata droppata, questo però non comporta una perdita di informazione in quanto rimane intrinseca nell'ordine delle righe.
+
+Gli iperparametri utilizzati per il tuning sono riportati in tabella\ref{} di sotto definita:
+
+%TABELLA IPERPAREMTRI IN INPUT
+
+
+Per il tuning sono stati effettuati tre passaggi importanti riportati di seguito:
+\begin{enumerate}
+    \item \textbf{Split train/test principale}, effettuato con la stessa logica spiegata in nella sotto sezione\ref{subsection:datasetSplit}
+    \item \textbf{Split tune-train / tune-val}.
+    \item \textbf{Ordinamento temporale}.
+\end{enumerate}
+
+\subsection{Risultati tuning iperparametri}
+L'esecuzione del tuning degli iperparemtri è durata circa 6 ore per calcolare 33 combinazioni diverse di iperparametri. 
+I risultati, calcolati con F1-score weighted e AUC-ROC, visionabili in tabella~\ref{tab:lstm_tuning}, sono in linea con quanto visto nel capitolo~\ref{chap:MLP} precedente, infatti possiamo notare che la F1-Score Weighted rimane pressochè invariata a $\pm 0.96$, con solo alcuni casi in cui scende a $\pm 0.94$ (esecuzione \textit{22} e \textit{30}), dunque terremo in considerazione la combinazione di entrambe le metriche e anche il tempo di esecuzione nel trovare un candidato ideale.
+
+Le tre combinazioni con valore di \textbf{AUC-ROC} più alto sono: combinazione \textbf{6}, \textbf{22} e \textbf{29}, tuttavia la combinazione \textbf{22} presenta un \textit{F1-score Weighted} di \textit{0.9443}, pertanto è stata scartata dalle candidate. Le due combinazioni rimaste presentano F1 molto vicine tra di loro, rispettivamente per la combinazione 6 abbiamo una F1 di \textit{0.9632}, mentre per la combinazione 29, abbiamo una F1 di \textit{0.9624}.
+Il fattore decisivo è dunque il tempo, infatti la combinazione 6 esegue in \textbf{686} secondi, mentre la 29 esegue in \textbf{893}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{cccccccc}
+\toprule
+\textbf{\#} &
+\textbf{Arch. FC} &
+\textbf{LSTM layers} &
+\textbf{LR} &
+\textbf{Epoche} &
+\textbf{F1} &
+\textbf{AUC} &
+\textbf{Tempo (s)} \\
+\midrule
+1  & [64]      & 1 & $10^{-3}$ &  5 & 0.9628 & 0.9409 &   147 \\
+2  & [64]      & 1 & $10^{-3}$ & 10 & 0.9628 & 0.9388 &   282 \\
+3  & [64]      & 1 & $10^{-4}$ &  5 & 0.9632 & 0.9826 &   143 \\
+4  & [64]      & 1 & $10^{-4}$ & 10 & 0.9629 & 0.9787 &   284 \\
+5  & [64]      & 2 & $10^{-3}$ &  5 & 0.9628 & 0.9414 &   343 \\
+\textbf{6}  & \textbf{[64]} & \textbf{2} & $\mathbf{10^{-3}}$ & \textbf{10} & \textbf{0.9632} & \textbf{0.9933} & \textbf{687} \\
+7  & [64]      & 2 & $10^{-4}$ &  5 & 0.9630 & 0.9827 &   341 \\
+8  & [64]      & 2 & $10^{-4}$ & 10 & 0.9627 & 0.9467 &   673 \\
+\midrule
+9  & [128]     & 1 & $10^{-3}$ &  5 & 0.9629 & 0.9360 &   328 \\
+10 & [128]     & 1 & $10^{-3}$ & 10 & 0.9629 & 0.9893 &   649 \\
+11 & [128]     & 1 & $10^{-4}$ &  5 & 0.9629 & 0.9693 &   328 \\
+12 & [128]     & 1 & $10^{-4}$ & 10 & 0.9628 & 0.9519 &   649 \\
+13 & [128]     & 2 & $10^{-3}$ &  5 & 0.9631 & 0.9399 &   880 \\
+14 & [128]     & 2 & $10^{-3}$ & 10 & 0.9630 & 0.9417 &  1747 \\
+15 & [128]     & 2 & $10^{-4}$ &  5 & 0.9632 & 0.9410 &   882 \\
+16 & [128]     & 2 & $10^{-4}$ & 10 & 0.9629 & 0.9403 &  1746 \\
+\midrule
+17 & [256]     & 1 & $10^{-3}$ &  5 & 0.9627 & 0.9481 &   967 \\
+18 & [256]     & 1 & $10^{-3}$ & 10 & 0.9630 & 0.9409 &  1915 \\
+19 & [256]     & 1 & $10^{-4}$ &  5 & 0.9628 & 0.9438 &   967 \\
+20 & [256]     & 1 & $10^{-4}$ & 10 & 0.9630 & 0.9426 &  1916 \\
+21 & [256]     & 2 & $10^{-3}$ &  5 & 0.9627 & 0.9594 &  2749 \\
+22 & [256]     & 2 & $10^{-3}$ & 10 & 0.9443 & 0.9943 &  5465 \\
+23 & [256]     & 2 & $10^{-4}$ &  5 & 0.9631 & 0.9408 &  2756 \\
+24 & [256]     & 2 & $10^{-4}$ & 10 & 0.9633 & 0.9406 &  5492 \\
+\midrule
+25 & [128, 64] & 1 & $10^{-3}$ &  5 & 0.9627 & 0.9630 &   337 \\
+26 & [128, 64] & 1 & $10^{-3}$ & 10 & 0.9631 & 0.9695 &   665 \\
+27 & [128, 64] & 1 & $10^{-4}$ &  5 & 0.9632 & 0.9652 &   337 \\
+28 & [128, 64] & 1 & $10^{-4}$ & 10 & 0.9631 & 0.9464 &   664 \\
+29 & [128, 64] & 2 & $10^{-3}$ &  5 & 0.9624 & 0.9915 &   893 \\
+30 & [128, 64] & 2 & $10^{-3}$ & 10 & 0.9496 & 0.9391 &  1771 \\
+\bottomrule
+\end{tabular}
+\caption{Risultati del tuning iperparametri LSTM (\texttt{window\_size}~=~30s).
+La metrica di selezione è AUC-ROC: l'F1 weighted risulta non discriminante per via
+dello sbilanciamento delle classi ($\sim$1.3\% guasti), mentre l'AUC varia
+significativamente tra le configurazioni (0.936--0.994).
+La configurazione ottimale (\#6, evidenziata) è \texttt{arch=[64]},
+\texttt{lstm\_layers=2}, \texttt{lr=$10^{-3}$}, \texttt{epochs=10},
+con AUC=0.9933.}
+\label{tab:lstm_tuning}
+\end{table}
+
+Questa scelta è stata anche convalidata visivamente creando due grafici attraverso l'uso di librerie python.
+
+L'immagine~\ref{fig:LSTMefficienzaTuning} mostra il rapporto tra la metrica \textbf{AUC-ROC} e la quantità di tempo, in secondi, necessaria per l'esecuzione. Possiamo notare come il valore migliore arrivi dalla combinazione \textbf{22} precedentemente scartata per via di un F1 peggiore rispetto altre combinazioni. Questa combinazione è anche l'unica, tra quelle provate, che ha impiegato più di $5000$ secondi di esecuzione, in prospettiva sono $\approx 83$ minuti, rispetto invece la combinazione \textbf{6} che ce ne mette $\approx 11$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_tuning_efficiency.png}
+    \caption{Confronto tra AUC-ROC e tempo di esecuzione per il tuning iperparametri LSTM}
+    \label{fig:LSTMefficienzaTuning}
+\end{figure}
+
+L'immagine~\ref{fig:LSTMConfrontoTuningMetriche} mostra, invece, un confronto visivo tra le due metriche, che rispecchia quanto detto ad inizio sotto sezione: La combinazione \textbf{22}, pur essendo quella con AUC-ROC migliore, risulta anche quella con F1 peggiore.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_tuning_metrics.png}
+    \caption{Confronto tra AUC-ROC e F1-Score Weighted per il tuning iperparametri LSTM}
+    \label{fig:LSTMConfrontoTuningMetriche}
+\end{figure}
+
+\section{Esecuzione del modello}
+
+
+
+
+
+\end{document}

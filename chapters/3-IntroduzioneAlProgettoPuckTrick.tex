@@ -413,7 +413,7 @@ applicata coerentemente in tutte le 8 iterazioni.}
 
 I risultati mostrano un comportamento di scalabilità sostanzialmente lineare, visibile in Figura~\ref{fig:sparkProgressivo}. Partendo da circa 3.6 secondi per 1 milione di righe, il tempo per singola iterazione raddoppia progressivamente al raddoppiare del dataset, raggiungendo circa 84.6 secondi per 128 milioni di righe.
 
-Le prime tre iterazioni (1M, 2M, 4M di righe) presentano tempi molto simili tra loro, $\pm 3.5$ secondi. A partire dagli 8 milioni di righe il comportamento diventa proporzionale al dato, con la curva che scala in modo quasi perfettamente lineare senza segnali di colli di bottiglia anomali, collisioni di shuffle o degrado delle risorse del cluster fino a 128 milioni di righe.
+Le prime tre iterazioni (1M, 2M, 4M di righe) presentano tempi molto simili tra loro (circa 3--3.5 secondi), confermando che a bassa cardinalità il costo dominante è la fase di inizializzazione del job Spark piuttosto che il volume dei dati effettivo. A partire dagli 8 milioni di righe il comportamento diventa proporzionale al dato, con la curva che scala in modo quasi perfettamente lineare senza segnali di colli di bottiglia anomali fino a 128 milioni di righe, soglia oltre la quale il cluster raggiunge il limite della memoria heap della JVM, impedendo l'esecuzione delle iterazioni successive. Questo limite è riconducibile alla quantità di RAM disponibile sui nodi worker (16 GB ciascuno) e alla configurazione conservativa della heap Spark. Non costituisce un vincolo per il piano sperimentale, che opera su dataset da circa 1.5 milioni di righe.
 
 \begin{figure}[H]
     \centering

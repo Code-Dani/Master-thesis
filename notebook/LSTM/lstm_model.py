@@ -1,16 +1,23 @@
 """
 lstm-esperimenti.py
 ===================
-Loop sperimentale LSTM — 20 run × 5 noise type × 5 livelli = 2.000 run totali.
-Il training di ogni run avviene tramite TorchDistributor (PyTorch distribuito
-su cluster Spark, backend Gloo CPU).
+Loop sperimentale LSTM.
 
-Prerequisito
-------------
-Aver eseguito lstm-tuning.py e impostato i BEST_* qui sotto.
+Struttura run:
+- labels, duplicated : 5 livelli × 20 run = 100 run ciascuno (no feature loop)
+- missing, noise, outliers : 3 feature × 5 livelli × 20 run = 300 run ciascuno
 
-Esecuzione: python lstm-esperimenti.py
+Totale: 2 × 100 + 3 × 300 = 1.100 run
+
+Prerequisito: aver eseguito lstm-tuning.py e impostato i BEST_* qui sotto.
+Esecuzione  : python lstm_model.py
 """
+import os
+os.environ["HADOOP_HOME"] = "C:\\hadoop"
+os.environ["PATH"] = os.environ["PATH"] + ";C:\\hadoop\\bin"
+os.environ["PYSPARK_PYTHON"] = "D:\\Users\\satri\\Pictures\\github\\Deep-Learning-Robustness-Study\\.venv\\Scripts\\python.exe"
+os.environ["PYSPARK_DRIVER_PYTHON"] = "D:\\Users\\satri\\Pictures\\github\\Deep-Learning-Robustness-Study\\.venv\\Scripts\\python.exe"
+
 
 import time
 import json
@@ -32,15 +39,15 @@ from pucktrick import PuckTrick, Engine
 from sklearn.metrics import f1_score, roc_auc_score
 
 # =============================================================================
-# ██  BEST PARAMS — IMPOSTARE MANUALMENTE DAI RISULTATI DI lstm-tuning.py  ██
+# ██ BEST PARAMS — IMPOSTARE MANUALMENTE DAI RISULTATI DI lstm-tuning.py ██
 # =============================================================================
 
-BEST_WINDOW_SIZE: int   = 30       # ← da sostituire
-BEST_HIDDEN_SIZE: int   = 128      # ← da sostituire
-BEST_NUM_LAYERS:  int   = 1        # ← da sostituire
-BEST_LR:          float = 1e-3     # ← da sostituire
-BEST_EPOCHS:      int   = 10       # ← da sostituire
-BEST_BATCH_SIZE:  int   = 512      # fisso — cambia solo se OOM
+BEST_WINDOW_SIZE: int = 30
+BEST_HIDDEN_SIZE: int = 128
+BEST_NUM_LAYERS: int  = 1
+BEST_LR: float        = 1e-3
+BEST_EPOCHS: int      = 10
+BEST_BATCH_SIZE: int  = 512
 
 # =============================================================================
 
@@ -49,21 +56,23 @@ ALL_FEATURES = [
     "Reservoirs_scaled", "Oil_temperature_scaled", "Motor_current_scaled",
     "COMP", "DV_eletric", "Towers", "MPG", "LPS", "Pressure_switch"
 ]
-NOISE_FEATURES = ["DV_pressure_scaled", "Oil_temperature_scaled", "TP3_scaled"]
-LABEL_COL      = "target"
-N_FEATURES     = len(ALL_FEATURES)  # 13
+NOISE_FEATURES   = ["DV_pressure_scaled", "Oil_temperature_scaled", "TP3_scaled"]
+NOISE_NO_FEATURE = ["labels", "duplicated"]
+LABEL_COL        = "target"
+N_FEATURES       = len(ALL_FEATURES)  # 13
 
-NOISE_TYPES  = ["duplicated", "labels", "missing", "noisy", "outliers"]
+NOISE_TYPES  = ["duplicated", "labels", "missing", "noise", "outliers"]
 NOISE_LEVELS = [0.0, 0.1, 0.2, 0.3, 0.5]
 N_RUNS       = 20
 T_VALUE_95   = 2.093
 
-RESULTS_PATH = "/home/PuckTrickadmin/RESULTS/lstm_results.jsonl"
-TMP_DATA_DIR = "/home/PuckTrickadmin/tmp"   # filesystem condiviso — leggibile da tutti i worker
-
+RESULTS_PATH = "D:/Users/satri/Pictures/github/Deep-Learning-Robustness-Study/RESULTS/lstm_results.jsonl"
+TMP_DATA_DIR = "D:/Users/satri/Pictures/github/Deep-Learning-Robustness-Study/tmp"
+VENV_PYTHON  = "D:/Users/satri/Pictures/github/Deep-Learning-Robustness-Study/.venv/Scripts/python.exe"
+DATA_PATH    = "D:\\Users\\satri\\Pictures\\github\\Deep-Learning-Robustness-Study\\notebook\\Dataset\\MetroDT_Modified.parquet"
 
 # =============================================================================
-# FUNZIONE DI TRAINING DISTRIBUITO (eseguita da TorchDistributor su ogni worker)
+# FUNZIONE DI TRAINING DISTRIBUITO
 # =============================================================================
 
 def _distributed_train_fn(
@@ -77,15 +86,6 @@ def _distributed_train_fn(
     n_features:  int,
     seed:        int,
 ):
-    """
-    Funzione chiamata da TorchDistributor su ciascun processo del cluster.
-
-    - Carica i dati da data_path (filesystem condiviso NFS)
-    - Inizializza il process group gloo (CPU)
-    - Avvolge il modello in DistributedDataParallel
-    - Usa DistributedSampler per partizionare i dati tra i worker
-    - Solo rank 0 esegue la valutazione e restituisce le metriche
-    """
     import torch
     import torch.nn as nn
     import torch.distributed as dist
@@ -95,45 +95,34 @@ def _distributed_train_fn(
     import numpy as np
     from sklearn.metrics import f1_score, roc_auc_score
 
-    # ── Init process group ────────────────────────────────────────────────
     dist.init_process_group(backend="gloo")
     rank       = dist.get_rank()
     world_size = dist.get_world_size()
     torch.manual_seed(seed + rank)
     np.random.seed(seed + rank)
 
-    # ── Carica dati dal filesystem condiviso ──────────────────────────────
     data           = np.load(data_path)
-    train_features = data["train_features"]   # (N, F)
-    train_labels   = data["train_labels"]     # (N,)
-    test_features  = data["test_features"]    # (M, F)
-    test_labels    = data["test_labels"]      # (M,)
+    train_features = data["train_features"]
+    train_labels   = data["train_labels"]
+    test_features  = data["test_features"]
+    test_labels    = data["test_labels"]
 
-    # ── Dataset con windowing temporale ───────────────────────────────────
     class _WinDS(Dataset):
         def __init__(self, feats, labs, ws):
-            self.f, self.l, self.ws = (
-                torch.tensor(feats, dtype=torch.float32),
-                torch.tensor(labs,  dtype=torch.long),
-                ws,
-            )
+            self.f  = torch.tensor(feats, dtype=torch.float32)
+            self.l  = torch.tensor(labs,  dtype=torch.long)
+            self.ws = ws
         def __len__(self):
             return len(self.f) - self.ws + 1
         def __getitem__(self, i):
             return self.f[i : i + self.ws], self.l[i + self.ws - 1]
 
-    train_ds = _WinDS(train_features, train_labels, window_size)
-
-    # ── Distributed sampler — partiziona le finestre tra i worker ─────────
-    sampler = DistributedSampler(
-        train_ds, num_replicas=world_size, rank=rank,
-        shuffle=True, seed=seed,
+    train_ds     = _WinDS(train_features, train_labels, window_size)
+    sampler      = DistributedSampler(
+        train_ds, num_replicas=world_size, rank=rank, shuffle=True, seed=seed
     )
-    train_loader = DataLoader(
-        train_ds, batch_size=batch_size, sampler=sampler, num_workers=0,
-    )
+    train_loader = DataLoader(train_ds, batch_size=batch_size, sampler=sampler, num_workers=0)
 
-    # ── Modello + DDP ─────────────────────────────────────────────────────
     class _LSTM(nn.Module):
         def __init__(self):
             super().__init__()
@@ -149,25 +138,23 @@ def _distributed_train_fn(
             out, _ = self.lstm(x)
             return self.fc(out[:, -1])
 
-    model = DDP(_LSTM())
-
-    # ── Loss pesata ────────────────────────────────────────────────────────
-    n_pos  = max((train_labels == 1).sum(), 1)
-    n_neg  = (train_labels == 0).sum()
-    weight = torch.tensor([1.0, n_neg / n_pos], dtype=torch.float32)
+    device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model     = DDP(_LSTM().to(device))
+    n_pos     = max((train_labels == 1).sum(), 1)
+    n_neg     = (train_labels == 0).sum()
+    weight    = torch.tensor([1.0, n_neg / n_pos], dtype=torch.float32).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    # ── Training ────────────────────────────────────────────────────────────
     model.train()
     for epoch in range(num_epochs):
         sampler.set_epoch(epoch)
         for xb, yb in train_loader:
+            xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
             criterion(model(xb), yb).backward()
             optimizer.step()
 
-    # ── Valutazione — solo rank 0 ─────────────────────────────────────────
     metrics = {"f1": 0.0, "auc": 0.0}
     if rank == 0:
         test_ds     = _WinDS(test_features, test_labels, window_size)
@@ -177,9 +164,10 @@ def _distributed_train_fn(
         preds, probs, labs = [], [], []
         with torch.no_grad():
             for xb, yb in test_loader:
+                xb = xb.to(device)
                 logits = model(xb)
-                probs.extend(torch.softmax(logits, dim=1)[:, 1].numpy())
-                preds.extend(logits.argmax(dim=1).numpy())
+                probs.extend(torch.softmax(logits, dim=1)[:, 1].cpu().numpy())
+                preds.extend(logits.argmax(dim=1).cpu().numpy())
                 labs.extend(yb.numpy())
 
         labs  = np.array(labs)
@@ -195,36 +183,29 @@ def _distributed_train_fn(
         metrics = {"f1": f1, "auc": auc}
 
     dist.destroy_process_group()
-    return metrics   # TorchDistributor restituisce il valore di rank 0
-
+    return metrics
 
 # =============================================================================
 # INIT SPARK
 # =============================================================================
 
 def init_spark():
-    MASTER_URL  = "spark://10.0.1.8:7077"
-    DRIVER_HOST = "10.0.1.8"
-
     spark = SparkSession.builder \
         .appName("MetroPT_LSTM_Experiments") \
-        .master(MASTER_URL) \
-        .config("spark.submit.deployMode",      "client") \
-        .config("spark.executor.instances",     "4") \
-        .config("spark.executor.cores",         "4") \
-        .config("spark.executor.memory",        "13g") \
+        .master("local[*]") \
         .config("spark.driver.memory",          "8g") \
-        .config("spark.driver.host",            DRIVER_HOST) \
-        .config("spark.driver.bindAddress",     DRIVER_HOST) \
+        .config("spark.driver.host",            "127.0.0.1") \
+        .config("spark.driver.bindAddress",     "127.0.0.1") \
         .config("spark.sql.shuffle.partitions", "32") \
+        .config("spark.pyspark.python",         VENV_PYTHON) \
+        .config("spark.pyspark.driver.python",  VENV_PYTHON) \
         .getOrCreate()
 
     spark.sparkContext.setLogLevel("ERROR")
     print("SparkSession creata — versione:", spark.version)
 
-    DATA_PATH = "/home/PuckTrickadmin/DATASETS/MetroDT_Modified.parquet"
-    raw_pdf   = pd.read_parquet(DATA_PATH)
-    raw_df    = spark.createDataFrame(raw_pdf)
+    raw_pdf = pd.read_parquet(DATA_PATH)
+    raw_df  = spark.createDataFrame(raw_pdf)
     del raw_pdf
 
     df = raw_df.select(
@@ -233,11 +214,11 @@ def init_spark():
         F.col("target").cast(DoubleType()),
     ).dropna()
 
-    SPLIT_DATE = "2020-06-01 00:00:00"
-    pt         = PuckTrick(df, engine=Engine.SPARK)
-    base_df    = pt.original
+    SPLIT_DATE    = "2020-06-01 00:00:00"
+    pt            = PuckTrick(df, engine=Engine.SPARK)
+    base_df       = pt.original
 
-    base_train_df = base_df.filter(F.col("timestamp") < SPLIT_DATE)
+    base_train_df = base_df.filter(F.col("timestamp") <  SPLIT_DATE)
     base_test_df  = base_df.filter(F.col("timestamp") >= SPLIT_DATE)
 
     base_train_df.cache()
@@ -252,12 +233,10 @@ def init_spark():
     print(f"Test     : {n_test:,} righe ({n_test_fault:,} guasti, {n_test_fault/n_test*100:.2f}%)")
     print(f"Split    : {n_train/(n_train+n_test)*100:.1f}% train / {n_test/(n_train+n_test)*100:.1f}% test")
 
-    # PuckTrick sul training set con timestamp (necessario per iniezione rumore)
     train_df_with_ts = base_df.filter(F.col("timestamp") < SPLIT_DATE)
-    pt_train = PuckTrick(train_df_with_ts, engine=Engine.SPARK)
+    pt_train         = PuckTrick(train_df_with_ts, engine=Engine.SPARK)
 
     return spark, base_train_df, base_test_df, pt_train
-
 
 # =============================================================================
 # SINGOLO RUN SPERIMENTALE
@@ -266,44 +245,56 @@ def init_spark():
 def run_experiment(
     pt_train,
     base_test_df,
-    noise_type:    str,
-    feature:       list,
-    feature_label: str,
-    percentage:    float,
-    seed:          int,
-    window_size:   int   = BEST_WINDOW_SIZE,
-    hidden_size:   int   = BEST_HIDDEN_SIZE,
-    num_layers:    int   = BEST_NUM_LAYERS,
-    lr:            float = BEST_LR,
-    num_epochs:    int   = BEST_EPOCHS,
-    batch_size:    int   = BEST_BATCH_SIZE,
+    noise_type:  str,
+    feature:     str,
+    percentage:  float,
+    seed:        int,
+    window_size: int   = BEST_WINDOW_SIZE,
+    hidden_size: int   = BEST_HIDDEN_SIZE,
+    num_layers:  int   = BEST_NUM_LAYERS,
+    lr:          float = BEST_LR,
+    num_epochs:  int   = BEST_EPOCHS,
+    batch_size:  int   = BEST_BATCH_SIZE,
 ) -> dict:
-    """
-    1. Inietta rumore nel training set (Spark)
-    2. Raccoglie training+test su driver come numpy, ordinati per timestamp
-    3. Salva .npz su filesystem condiviso (leggibile dai worker)
-    4. Lancia TorchDistributor → training DDP distribuito sul cluster
-    5. Restituisce il dizionario dei risultati
-    """
     t0 = time.time()
     os.makedirs(TMP_DATA_DIR, exist_ok=True)
 
-    # ── Iniezione rumore ───────────────────────────────────────────────────
     if percentage == 0.0:
         noisy_df = pt_train.original
     else:
-        noisy_df = getattr(pt_train, noise_type)(
-            percentage = percentage,
-            columns    = feature,
-            seed       = seed,
-        )
+        strategy = {
+            "affected_features":  [feature],
+            "selection_criteria": "all",
+            "percentage":         percentage,
+            "mode":               "new",
+            "perturbate_data": {
+                "distribution": "random",
+                "param":        {"seed": seed}
+            }
+        }
 
-    # Ordina per timestamp — fondamentale per preservare la gerarchia temporale
+        if noise_type == "duplicated":
+            status, noisy_df = pt_train.duplicated(pt_train.original, strategy)
+        elif noise_type == "labels":
+            label_strategy   = {**strategy, "affected_features": [LABEL_COL]}
+            status, noisy_df = pt_train.labels(pt_train.original, label_strategy)
+        elif noise_type == "missing":
+            status, noisy_df = pt_train.missing(pt_train.original, strategy)
+        elif noise_type == "noise":
+            status, noisy_df = pt_train.noise(pt_train.original, strategy)
+        elif noise_type == "outliers":
+            status, noisy_df = pt_train.outlier(pt_train.original, strategy)
+        else:
+            raise ValueError(f"Tipo di rumore non supportato: {noise_type}")
+
+        if status != 0:
+            print(f"⚠️  inject_noise: status={status} ({noise_type}, {feature}, {percentage:.0%}, seed={seed})")
+            noisy_df = pt_train.original
+
     noisy_df = noisy_df.orderBy("timestamp").drop("timestamp")
     noisy_df.cache()
-    n_train = noisy_df.count() if noise_type == "duplicated" else pt_train.original.count()
+    n_train  = noisy_df.count() if noise_type == "duplicated" else pt_train.original.count()
 
-    # ── Raccolta su driver — ordinamento temporale già applicato ──────────
     train_pdf = noisy_df.select(ALL_FEATURES + [LABEL_COL]).toPandas()
     test_pdf  = (
         base_test_df
@@ -317,8 +308,7 @@ def run_experiment(
     test_features  = test_pdf[ALL_FEATURES].values.astype(np.float32)
     test_labels    = test_pdf[LABEL_COL].values.astype(np.int64)
 
-    # ── Salva .npz su filesystem condiviso ────────────────────────────────
-    data_path = os.path.join(TMP_DATA_DIR, f"run_{noise_type}_{seed}.npz")
+    data_path = os.path.join(TMP_DATA_DIR, f"run_{noise_type}_{feature}_{seed}.npz")
     np.savez(
         data_path,
         train_features = train_features,
@@ -327,12 +317,10 @@ def run_experiment(
         test_labels    = test_labels,
     )
 
-    # ── Training distribuito via TorchDistributor ─────────────────────────
-    # num_processes = 4 → un processo per executor; backend gloo (CPU)
     distributor = TorchDistributor(
-        num_processes = 4,
-        local_mode    = False,
-        use_gpu       = False,
+        num_processes = 1,
+        local_mode    = True,
+        use_gpu       = True,
     )
     metrics = distributor.run(
         _distributed_train_fn,
@@ -347,7 +335,6 @@ def run_experiment(
         seed,
     )
 
-    # ── Cleanup ────────────────────────────────────────────────────────────
     try:
         os.remove(data_path)
     except OSError:
@@ -355,16 +342,15 @@ def run_experiment(
     noisy_df.unpersist()
 
     return {
-        "noise_type":    noise_type,
-        "feature":       feature_label,
-        "percentage":    percentage,
-        "seed":          seed,
-        "f1":            metrics["f1"],
-        "auc":           metrics["auc"],
-        "n_train":       n_train,
-        "duration_s":    time.time() - t0,
+        "noise_type": noise_type,
+        "feature":    feature,
+        "percentage": percentage,
+        "seed":       seed,
+        "f1":         metrics["f1"],
+        "auc":        metrics["auc"],
+        "n_train":    n_train,
+        "duration_s": time.time() - t0,
     }
-
 
 # =============================================================================
 # LOOP SPERIMENTALE
@@ -380,12 +366,6 @@ def loop_sperimentale(
     num_epochs:  int   = BEST_EPOCHS,
     batch_size:  int   = BEST_BATCH_SIZE,
 ):
-    """
-    Esegue tutti i 2.000 run sperimentali.
-    I parametri possono essere passati esplicitamente oppure vengono letti
-    dalle variabili globali BEST_* impostate in cima al file.
-    Scrittura incrementale su RESULTS_PATH — il loop è riprendibile.
-    """
     print("\n" + "="*60)
     print("LOOP SPERIMENTALE — parametri attivi")
     print("="*60)
@@ -397,21 +377,21 @@ def loop_sperimentale(
     print(f"  batch_size  : {batch_size}")
     print()
 
-    # ── Definizione dei run ────────────────────────────────────────────────
-    # Il rumore viene iniettato su NOISE_FEATURES (3 colonne)
-    feature_configs = [
-        ("NOISE_FEATURES (DV_pressure+Oil_temperature+TP3)", NOISE_FEATURES),
-    ]
+    all_runs = []
+    for noise_type in NOISE_TYPES:
+        if noise_type in NOISE_NO_FEATURE:
+            for percentage in NOISE_LEVELS:
+                for seed in range(N_RUNS):
+                    all_runs.append((noise_type, "all_features", percentage, seed))
+        else:
+            for feature in NOISE_FEATURES:
+                for percentage in NOISE_LEVELS:
+                    for seed in range(N_RUNS):
+                        all_runs.append((noise_type, feature, percentage, seed))
 
-    all_runs = [
-        (nt, fl, fa, lvl, s)
-        for nt          in NOISE_TYPES
-        for (fl, fa)    in feature_configs
-        for lvl         in NOISE_LEVELS
-        for s           in range(N_RUNS)
-    ]
+    total_runs = (len(NOISE_NO_FEATURE) * len(NOISE_LEVELS) * N_RUNS) + \
+                 ((len(NOISE_TYPES) - len(NOISE_NO_FEATURE)) * len(NOISE_FEATURES) * len(NOISE_LEVELS) * N_RUNS)
 
-    # ── Resume ────────────────────────────────────────────────────────────
     done = set()
     try:
         with open(RESULTS_PATH) as fh:
@@ -425,35 +405,38 @@ def loop_sperimentale(
     except FileNotFoundError:
         pass
 
-    runs_to_do = [r for r in all_runs if (r[0], r[1], r[3], r[4]) not in done]
-    print(f"Run da eseguire : {len(runs_to_do)} / {len(all_runs)}\n")
+    runs_to_do = [r for r in all_runs if (r[0], r[1], r[2], r[3]) not in done]
+    print(f"Run totali      : {total_runs}")
+    print(f"Run da eseguire : {len(runs_to_do)} / {total_runs}\n")
 
-    # ── Signal handler ─────────────────────────────────────────────────────
     def _sig(sig, frame):
         print("\n\n⚠️  Interruzione — uscita pulita.")
         sys.exit(0)
     signal.signal(signal.SIGINT,  _sig)
     signal.signal(signal.SIGTERM, _sig)
 
-    # ── Loop principale ────────────────────────────────────────────────────
+    os.makedirs(os.path.dirname(RESULTS_PATH), exist_ok=True)
+
     with open(RESULTS_PATH, "a") as out_f:
-        for i, (noise_type, feature_label, feature_arg, percentage, seed) in enumerate(runs_to_do):
+        for i, (noise_type, feature, percentage, seed) in enumerate(runs_to_do):
             try:
+                feature_arg = NOISE_FEATURES[0] if noise_type in NOISE_NO_FEATURE else feature
+
                 result = run_experiment(
-                    pt_train      = pt_train,
-                    base_test_df  = base_test_df,
-                    noise_type    = noise_type,
-                    feature       = feature_arg,
-                    feature_label = feature_label,
-                    percentage    = percentage,
-                    seed          = seed,
-                    window_size   = window_size,
-                    hidden_size   = hidden_size,
-                    num_layers    = num_layers,
-                    lr            = lr,
-                    num_epochs    = num_epochs,
-                    batch_size    = batch_size,
+                    pt_train     = pt_train,
+                    base_test_df = base_test_df,
+                    noise_type   = noise_type,
+                    feature      = feature_arg,
+                    percentage   = percentage,
+                    seed         = seed,
+                    window_size  = window_size,
+                    hidden_size  = hidden_size,
+                    num_layers   = num_layers,
+                    lr           = lr,
+                    num_epochs   = num_epochs,
+                    batch_size   = batch_size,
                 )
+                result["feature"]   = feature
                 result["timestamp"] = datetime.now().isoformat()
                 out_f.write(json.dumps(result) + "\n")
                 out_f.flush()
@@ -465,6 +448,7 @@ def loop_sperimentale(
                         f"[{datetime.now().strftime('%H:%M:%S')}]"
                         f"  Run {i+1}/{len(runs_to_do)}"
                         f"  {noise_type:<12}"
+                        f"  {feature:<25}"
                         f"  {percentage:.0%}"
                         f"  seed={seed}"
                         f"  F1={result['f1']:.4f}"
@@ -478,7 +462,7 @@ def loop_sperimentale(
                 sys.exit(0)
 
             except Exception:
-                print(f"\n❌ ERRORE ({noise_type}, {feature_label}, {percentage:.0%}, seed={seed}):")
+                print(f"\n❌ ERRORE ({noise_type}, {feature}, {percentage:.0%}, seed={seed}):")
                 traceback.print_exc()
                 print("— continuo con il prossimo run —\n")
                 continue
@@ -486,7 +470,6 @@ def loop_sperimentale(
     print(f"\n✅ Loop completato — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"✅ Risultati in: {RESULTS_PATH}")
 
-    # ── Aggregazione finale ────────────────────────────────────────────────
     print("\n--- Riepilogo aggregato ---")
     rows = []
     with open(RESULTS_PATH) as fh:
@@ -505,14 +488,11 @@ def loop_sperimentale(
         )
         print(summary.to_string())
 
-
 # =============================================================================
 # ENTRY POINT
 # =============================================================================
 
 if __name__ == "__main__":
     spark, base_train_df, base_test_df, pt_train = init_spark()
-
     loop_sperimentale(pt_train, base_test_df)
-
     spark.stop()

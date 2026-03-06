@@ -3,187 +3,270 @@
 \begin{document}
 
 \chapter{PuckTrick per introdurre rumore}
-\label{chap:DesignAndImplementation} %per semplicità rimane così , almeno non devo cambiare i reference
+\label{chap:DesignAndImplementation} 
 
-%brevissima introduzione in quanto esiste già il paper di Maurino
-%introduco al fatto che devo convertire la libreria
+\section{Introduzione}
+
+Il piano sperimentale descritto nel Capitolo~\ref{chap:EmpyricAnalysis} prevede l'esecuzione di \textbf{1100 esperimenti} sul dataset MetroPT-3, composto da oltre 1,5 milioni di righe. A questa scala, l'utilizzo del backend Pandas di PuckTrick per la fase di iniezione del rumore avrebbe comportato tempi di elaborazione proibitivi: come mostrato nell'analisi delle performance \red{(Sezione~\ref{sec:analisi_performance})}, Pandas su operazioni computazionalmente costose scala in modo sfavorevole all'aumentare del volume dei dati, a differenza di Spark che distribuisce il carico su tutti i nodi del cluster.
+
+Questo capitolo descrive il lavoro di estensione della libreria che ha portato all'introduzione di un backend Apache Spark, e illustra la configurazione dell'infrastruttura distribuita su cui è stato eseguito l'intero piano sperimentale.
 
 
-\section{Sfide tecniche}
+\section{La libreria PuckTrick}
+\label{sec:pucktrick_originale}
 
-% SFIDE TECNICHE ----------------------------------------
+Come illustrato nel Capitolo~\ref{chap:StateOfArt}, PuckTrick espone cinque metodi di iniezione del rumore e opera nella sua versione originale esclusivamente su DataFrame Pandas, con un modello di esecuzione \textit{eager} su singola macchina.
 
-La conversione della libreria concepita per operare su strutture dati in-memory (Pandas) verso un framework distribuito (Apache Spark) ha posto una serie di sfide tecniche, derivanti dalle differenze architetturali profonde tra i due paradigmi. 
-In questa sezione si analizzano i problemi le strategie risolutive adottate, incontrati nello sviluppo delle fasi di conversione dei metodi e di ristrutturazione della libreria menzionati nel capitolo precedente.
+Il backend Pandas non è stato modificato nella sua logica durante questo lavoro, ad eccezione di alcune correzioni di bug minori; rimane pertanto il backend di riferimento per scenari su singola macchina e il termine di confronto per la valutazione delle performance descritta nella Sezione~\ref{sec:analisi_performance}.
+
+\section{Architettura a doppio backend}
+\label{sec:architettura_backend}
+
+La scelta più critica dell'estensione di PuckTrick a Spark è stata quella della creazione di un backend generalizzato e l'introduzione della classe PuckTrick, divenuta il punto di accesso principale per gli utenti della libreria. Questa classe permette all'utente di definire in modo facile ed intuitivo la modalità di utilizzo della libreria, cambiando agilmente tra \textbf{Pandas}, \textbf{Spark locale} e \textbf{Spark con cluster}.
+La selezione del backend avviene alla costruzione  dell'oggetto \textbf{PuckTrick}, come visibile nel codice~\ref{lst:pucktrick_backend_init} sotto riportato
+
+\begin{listing}[H]
+\begin{minted}[fontsize=\small, frame=single]{python}
+from pucktrick import PuckTrick, Engine
+dataset = ...
+
+pt = PuckTrick(dataset, engine=Engine.PANDAS)
+pt = PuckTrick(dataset, engine=Engine.SPARK)
+pt = PuckTrick(dataset, engine=Engine.AUTO)
+
+#Returns the original dataset with the addition 
+#of a column called: "_pucktrick_row_id"
+dataset_with_puckID = pt.original
+\end{minted}
+\caption{Selezione esplicita del backend al momento dell'istanziazione di PuckTrick.}
+\label{lst:pucktrick_backend_init}
+\end{listing}
+
+Questa classe, inoltre, è stata adattata per permettere di prendere in input dei parametri per l'inizializzazione della sessione Spark, in quanto di default viene creata una sessione locale.
+
+Viene fornito adesso il codice di esempio per passare a PuckTrick una configurazione di sessione personalizzata (Codice~\ref{lst:pucktrick_custom_session}):
+
+\begin{listing}[H]
+\begin{minted}[fontsize=\small, frame=single]{python}
+from pucktrick import PuckTrick, Engine
+dataset = ...
+
+config = PuckTrick.make_remote_cluster_config(
+    master_url="spark://localhost:7077",
+    num_executors=4,
+    executor_cores=4,
+    executor_memory="4g",
+    driver_memory="4g",
+    driver_host="localhost",
+    driver_bind_address="localhost"
+)
+
+pt = PuckTrick(dataset, engine=Engine.SPARK, remote_cluster=config)
+pt = PuckTrick(dataset, engine=Engine.AUTO, remote_cluster=config)
+\end{minted}
+\caption{Creazione di una istanza di PuckTrick con configurazione Spark personalizzata}
+\label{lst:pucktrick_custom_session}
+\end{listing}
+
+Per ovvie ragioni questo parametro è del tutto opzionale è può essere tranquillamente omesso.
+\newpage
+
+Internamente, ciascuno dei cinque metodi di iniezione del rumore delega l'esecuzione al modulo corrispondente nel backend selezionato. I due moduli condividono la stessa interfaccia contrattuale ma differiscono nell'implementazione: il backend Pandas opera in modo \textit{eager} su strutture dati in memoria, mentre il backend Spark costruisce un piano di esecuzione \textit{lazy} (DAG) ottimizzato dal Catalyst Optimizer e distribuito su tutti i nodi del cluster.
+
+La Figura~\ref{fig:pucktrickArchitecture} illustra questa struttura a livelli.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\linewidth]{images/pucktrick/PuckTrick Backend Selection-2026-03-06-204610.png}
+    \caption{Architettura a doppio backend di PuckTrick. La selezione del backend avviene a tempo di costruzione dell'oggetto e determina quale implementazione viene invocata per ciascun metodo di iniezione del rumore.}
+    \label{fig:pucktrickArchitecture}
+\end{figure}
+
+\newpage
+
+\section{Sfide tecniche della conversione}
+\label{sec:sfide_tecniche}
+La conversione di una libreria concepita per operare su strutture dati in-memory (Pandas) verso un framework distribuito (Apache Spark) ha posto una serie di sfide tecniche derivanti dalle differenze architetturali profonde tra i due paradigmi, come anticipato nel Capitolo~\ref{chap:StateOfArt}, sezione~\ref{section:DifferenzaTraApacheEPandas}. Questa sezione analizza i problemi incontrati e le strategie risolutive adottate nel corso dello sviluppo del backend Spark.
 
 \subsection{Assenza di indici posizionali in Spark}
 
-Una delle differenze più rilevanti tra Pandas e Spark risiede nel
-modello di accesso ai dati. Pandas espone un sistema di indicizzazione
-posizionale che, tramite i costrutti \texttt{iloc} e
-\texttt{loc}, consente di selezionare righe e colonne per
-posizione numerica o per etichetta. Questo paradigma è alla base di
-numerose operazioni nella versione originale di PuckTrick, in
-particolare per il campionamento di sottoinsiemi di righe da sporcare
-e per le operazioni di merge tra dataset originale e dataset modificato.
+Una delle differenze più rilevanti tra Pandas e Spark risiede nel nel modo in cui accedono ai dati. Pandas espone un sistema di indicizzazione posizionale che, tramite i costrutti \textit{iloc} e \textit{loc}, consente di selezionare righe e colonne per posizione numerica o per etichetta. Questo paradigma è alla base di numerose operazioni nella versione originale di PuckTrick, in particolare per il campionamento dei sottoinsiemi di righe da corrompere e per le operazioni di merge tra dataset originale e dataset modificato.
 
-Apache Spark, per contro, opera su collezioni distribuite (RDD e
-DataFrame) prive di un ordinamento intrinseco e di un indice
-posizionale. Tale assenza è una conseguenza diretta dell'architettura
-distribuita: poiché i dati sono partizionati su nodi differenti del
-cluster, la nozione stessa di ``riga \(i\)-esima'' non è definita in
-modo univoco senza un'operazione di ordinamento globale, che
-risulterebbe computazionalmente onerosa.
+Apache Spark, al contrario, opera su collezioni distribuite prive di un ordinamento intrinseco e di un indice posizionale. Tale assenza è una conseguenza diretta dell'architettura distribuita~\cite{zaharia2012resilient}: poiché i dati sono partizionati su nodi differenti del cluster, la nozione stessa di ``riga $i$-esima'' non è definita in modo univoco senza un'operazione di ordinamento globale, che risulterebbe computazionalmente onerosa.
 
-La soluzione adottata consiste nell'utilizzo della funzione nativa:
-$$\texttt{monotonically\_increasing\_id()}$$
-Questa assegna a ciascuna riga un identificativo numerico univoco e monotonicamente crescente. Taleidentificativo, denominato "\texttt{\_pucktrick\_row\_id}", viene aggiunto
-al DataFrame al momento dell'inizializzazione della classe \texttt{PuckTrick} e funge da surrogato dell'indice posizionale, consentendo operazioni di join, filtraggio e campionamento deterministico senza ricorrere a odinamenti globali.
+La soluzione adottata introduce un identificativo di riga univoco con un ciclo di vita ben definito e trasparente all'utente, articolato in quattro fasi:
 
-\newpage
+\begin{enumerate}
+    \item \textbf{Creazione}: nel costruttore di \textbf{PuckTrick}, tramite il metodo esposto da pySpark \textit{monotonically\_increasing\_id()}, viene aggiunta al DataFrame Spark la colonna \textit{\_pucktrick\_row\_id} (Codice~\ref{lst:pucktrick_row_id}). La scelta di creare un identificativo con nome univoco e riservato alla libreria nasce da una criticità emersa durante lo sviluppo: nella versione precedente ciascun metodo generava il proprio ID interno, causando collisioni di nomi qualora il dataset in ingresso contenesse già una colonna omonima, situazione che Spark non segnala come errore ma gestisce creando colonne duplicate, con conseguenti ambiguità nelle operazioni successive.
+
+    \item \textbf{Validazione}: ogni metodo di iniezione, prima di procedere con la corruzione, verifica che il DataFrame ricevuto in ingresso contenga la colonna menzionata al punto precedente: \textit{\_pucktrick\_row\_id}. In assenza di tale colonna l'esecuzione viene interrotta con un errore esplicito. Questo vincolo garantisce che i metodi vengano sempre invocati sul dataset restituito da \textit{pt.original} e non sul DataFrame grezzo originale, assicurando la coerenza degli identificativi di riga per tutta la durata della pipeline di iniezione.
+
+    \item \textbf{Utilizzo}: tutti i cinque metodi di iniezione del rumore fanno riferimento a \textit{\_pucktrick\_row\_id} per le operazioni di campionamento, filtraggio e join, senza necessità di ricreare un indice ad ogni invocazione.
+
+    \item \textbf{Rimozione}: prima di restituire il dataset corrotto all'utente, la colonna viene eliminata. Il dataset in uscita è pertanto strutturalmente identico a quello in ingresso, con la sola differenza dei valori modificati dall'iniezione del rumore.
+\end{enumerate}
+
+\begin{listing}[H]
+\begin{minted}[fontsize=\small, frame=single]{python}
+if (self.engine == Engine.SPARK and self.original_df is not None
+    and is_spark_df(self.original_df)
+    and self.PUCK_ID not in self.original_df.columns):
+
+    #Adding pucktrick_row_id to the dataset
+    self.original_df = self.original_df.withColumn(
+        self.PUCK_ID, F.monotonically_increasing_id()
+    )
+)
+\end{minted}
+\caption{Aggiunta dell'identificativo univoco di riga nel costruttore di 
+\textit{PuckTrick}. La colonna viene creata una sola volta, riutilizzata 
+da tutti i metodi internamente e rimossa prima della restituzione 
+del dataset all'utente.}
+\label{lst:pucktrick_row_id}
+\end{listing}
+
 
 \subsection{Lazy evaluation vs eager evaluation}
 
-Pandas adotta un modello di esecuzione \emph{eager}: ogni istruzione viene eseguita immediatamente e il risultato è disponibile in memoria al termine della chiamata. Spark, al contrario, implementa un modello di esecuzione \emph{lazy}: le operazioni di trasformazione (quali \texttt{filter}, \texttt{withColumn}, \texttt{select}) vengono registrate in un piano logico di esecuzione (\emph{Directed Acyclic Graph}, DAG) ma non vengono effettivamente eseguite fino a quando non viene invocata un'azione (ad esempio \texttt{count},
-\texttt{collect}, \texttt{show}). Questo meccanismo consente al Catalyst Optimizer di Spark di riordinare, fondere e ottimizzare le operazioni prima della loro esecuzione materiale.
+Pandas adotta un modello di esecuzione \textit{eager}: ogni istruzione viene eseguita immediatamente e il risultato è disponibile in memoria al termine della chiamata. Spark, al contrario, implementa un modello di esecuzione \textit{lazy}: le operazioni di trasformazione (\textit{filter}, \textit{withColumn}, \textit{select}) vengono registrate in un piano logico di esecuzione, ma non vengono materialmente eseguite fino a quando non viene invocata un'azione (ad esempio \textit{count}, \textit{collect}, \textit{show}). Questo meccanismo consente a Spark di riordinare, fondere e ottimizzare le operazioni prima della loro esecuzione effettiva.
 
-Questa differenza ha richiesto una ristrutturazione del flusso logico dei moduli di iniezione errori. Nel codice Pandas originale, risultati intermedi vengono spesso ispezionati, confrontati o utilizzati come input per decisioni condizionali nel corso dell'esecuzione. Nella
-versione Spark, è stato necessario strutturare il codice in modo da costruire pipeline complete di trasformazioni e materializzarle esclusivamente al momento della restituzione del risultato finale. Ciò ha comportato un ripensamento della logica di controllo in diversi moduli (in particolare in \texttt{noisy} e \texttt{outliers}, dove la decisione sulla strategia di
-perturbazione dipende da proprietà del dato; ad esempio se una colonna è categorica o numerica) che richiedono un'azione per essere determinate
+Questa differenza ha reso necessaria una ristrutturazione del flusso logico dei moduli di iniezione degli errori. Nel codice Pandas originale, i risultati intermedi vengono spesso ispezionati o utilizzati come input per decisioni condizionali nel corso dell'esecuzione. 
 
+Nella versione Spark è stato invece necessario strutturare il codice in modo da costruire pipeline complete di trasformazioni e materializzarle esclusivamente al momento della restituzione del risultato finale. Questo ha comportato un ripensamento della logica di controllo in diversi moduli, in particolare \textit{noisy}, \textit{outliers} e \textit{labels}, dove la strategia di perturbazione dipende da proprietà del dato (ad esempio, se una colonna è categorica o numerica) che richiedono un'azione per essere determinate.
 
-\subsection{Campionamento DataFrame distribuiti}
-\label{2.3}
-L'iniezione di errori in PuckTrick si basa fondamentalmente sul campionamento: data una percentuale specificata nella strategia, la libreria seleziona un sottoinsieme di righe su cui applicare la corruzione. In Pandas, questa operazione è deterministica (metodo \texttt{sample(n=...)}): restituisce esattamente \(n\) righe.
+\newpage
 
-In Spark (metodo \texttt{sample(fraction=...)}) si opera su base probabilistica: ciascuna riga viene inclusa nel campione con una probabilità pari alla frazione specificata, il che produce un risultato approssimato (il cui numero di righe segue una distribuzione binomiale).
-Per dataset di piccole dimensioni, la deviazione rispetto al numero atteso può essere significativa in termini relativi, ma per dataset più grandi (usecase principale di spark) la variazione può diventare signigicativa.
+\subsection{Campionamento di DataFrame distribuiti}
+\label{subsec:campionamento}
+L'iniezione di errori in PuckTrick si basa fondamentalmente sul 
+campionamento~\cite{agostini2025pucktricklibrarymakingsynthetic}: 
+data una percentuale specificata nella strategia, la libreria seleziona 
+un sottoinsieme di righe su cui applicare la corruzione. In Pandas, questa 
+operazione è deterministica tramite \textit{sample(n=...)}, che restituisce 
+esattamente $n$ righe.
 
-Per garantire la coerenza funzionale con il backend Pandas (per tutti i suoi moduli), è stata implementata una strategia di campionamento personalizzata che prevede:
+In Spark, il metodo \textit{sample(fraction=...)} opera invece su base probabilistica: ciascuna riga viene inclusa nel campione con una probabilità pari alla frazione specificata, producendo un risultato approssimato il cui numero di righe segue una distribuzione binomiale. Su dataset di grandi dimensioni la deviazione rispetto al numero atteso è trascurabile in termini relativi, ma per garantire la coerenza funzionale con il backend Pandas è stata implementata una strategia di campionamento personalizzata basata su due passi:
+
 \begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\item
-  un sovracampionamento iniziale con una frazione maggiorata per assicurare un numero sufficiente di candidati, 
-\item
-  l'applicazione di \texttt{limit(n)} per troncare il risultato al numero esatto di righe
-desiderato. 
+    \item un sovracampionamento iniziale con una frazione maggiorata, 
+    per assicurare un numero di candidati superiore a quello richiesto;
+    \item l'applicazione di \textit{limit(n)} per troncare il risultato 
+    al numero esatto di righe desiderato.
 \end{enumerate}
 
-Questa tecnica introduce un overhead computazionale trascurabile ma garantisce che la percentuale di corruzione specificata nella strategia sia rispettata con precisione.
+Questa tecnica introduce un overhead computazionale trascurabile (come vedremo nella sezione\ref{}) ma garantisce che la percentuale di corruzione specificata nella strategia sia rispettata con precisione, indipendentemente dal volume del dataset.
 
 \subsection{Gestione dei valori nulli}
 
-Pandas e Spark presentano differenze semantiche rilevanti nella rappresentazione dei valori mancanti. Per esempio: mentre Pandas distingue tra \texttt{None} e \texttt{NaN} (con comportamenti che variano a seconda del tipo della colonna) Spark, invece, utilizza uniformemente il valore \texttt{null} per rappresentarel'assenza di dato, indipendentemente dal tipo della colonna.
+Pandas e Spark presentano differenze semantiche rilevanti nella 
+rappresentazione dei valori mancanti. Pandas distingue tra \textit{None} e 
+\textit{NaN}, con comportamenti che variano in funzione del tipo della colonna; 
+Spark utilizza invece uniformemente il valore \textit{null} per rappresentare 
+l'assenza di dato, indipendentemente dal tipo.
 
-Questa discrepanza ha richiesto un'attenzione particolare nella conversione del modulo \texttt{missing}, dove l'obiettivo è proprio l'iniezione di valori nulli, e nel modulo \texttt{noisy}, dove la perturbazione di valori numerici deve distinguere correttamente tra
-celle contenenti dati validi e celle già nulle. 
+Questa discrepanza ha richiesto un'attenzione particolare nella conversione 
+del modulo \textit{missing}, dove l'obiettivo è proprio l'iniezione di 
+valori nulli, e del modulo \textit{noisy}, dove la perturbazione di valori 
+numerici deve distinguere correttamente tra celle contenenti dati validi e 
+celle già nulle. La soluzione adottata prevede l'utilizzo sistematico di 
+cast espliciti (\textit{cast("string")}, \textit{cast("double")}) e di 
+controlli dedicati (\textit{isNull()}, \textit{isNotNull()}) in ogni modulo 
+del backend Spark.
 
-La soluzione adottata prevede l'utilizzo sistematico di:
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\item
-  cast espliciti (\texttt{cast("string")}, \texttt{cast("double")}) 
-\item
-  controlli dedicati (\texttt{isNull()}, \texttt{isNotNull()})
-\end{enumerate}
-Questo per garantire un trattamento coerente dei valori nulli in ogni modulo del backend Spark.
+\subsection{Attendibilità degli unit test}
+Per la fase di validazione dei metodi implementati, si è deciso di riproporre la struttura adottata per Pandas e quindi integrare degli unit test che verificano il comportamento dei metodi implementati in modo mirato. Tuttavia, durante la fase di validazione è emerso che i test producevano risultati non deterministici con il backend Spark. Si è poi trovato che la causa risiedeva nella natura probabilistica del campionamento distribuito discussa nella Sezione~\ref{subsec:campionamento}, infatti, l'approssimazione introdotta da \textit{sample()} può generare campioni di dimensione significativamente diversa da quella attesa, causando il fallimento di asserzioni nei test.
 
-\subsection{Gestione dei path}
+La soluzione ha comportato due interventi complementari: l'incremento delle 
+dimensioni dei dataset utilizzati nei test, portandoli a un ordine di 
+grandezza sufficiente a rendere trascurabile l'errore di campionamento; e 
+l'adattamento delle soglie di tolleranza nelle asserzioni, accettando una 
+deviazione percentuale minima rispetto al valore atteso quando il backend è 
+Spark. Tale compromesso riflette una proprietà intrinseca dei sistemi 
+distribuiti, in cui la precisione assoluta viene bilanciata con la 
+scalabilità.
 
-La riorganizzazione della struttura del repository ha introdotto problemi dirottura sistematica dei riferimenti relativi utilizzati nei test e negli script di supporto. I moduli di test, in
-particolare, contenevano path relativi codificati staticamente (ad esempio per il caricamento di dataset CSV) che risultavano invalidi nella nuova struttura.
+\section{Infrastruttura distribuita}
+\label{sec:infrastruttura}
 
-La risoluzione ha richiesto un aggiornamento sistematico di tutti i riferimenti, adottando \texttt{pathlib.Path} con path relativi alla root del progetto anziché path assoluti o relativi alla posizione del singolo file. Questa scelta, oltre a risolvere il problema immediato, ha migliorato la portabilità del progetto tra sistemi operativi differenti.
+Al fine di validare il backend Spark di PuckTrick in un contesto distribuito reale e misurarne le performance rispetto al backend Pandas, è stato configurato un cluster Apache Spark in modalità \textit{Standalone}, ovvero con il gestore di risorse nativo di Spark, senza dipendenze da sistemi esterni come YARN o Kubernetes --- su un insieme di macchine virtuali messe a disposizione dall'Università. L'infrastruttura è composta da un nodo master e quattro worker. Gli IP \textbf{privati} delle macchine sono riportati in Tabella~\ref{tab:cluster_nodes} e verranno referenziati negli snippet di configurazione delle sezioni successive.
 
-\newpage
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{VM} & \textbf{Ruolo} & \textbf{IP privato} \\
+\midrule
+    VM-1 & Master  & \texttt{10.0.1.8} \\
+    VM-2 & Worker  & \texttt{10.0.1.4} \\
+    VM-3 & Worker  & \texttt{10.0.1.5} \\
+    VM-4 & Worker  & \texttt{10.0.1.6} \\
+    VM-5 & Worker  & \texttt{10.0.1.7} \\
+\bottomrule
+\end{tabular}
+\caption{Nodi del cluster Spark Standalone con relativi ruoli e IP privati.}
+\label{tab:cluster_nodes}
+\end{table}
 
-\subsection{Attendibilità dei test}
+Le macchine virtuali fornite presentano specifiche eterogenee, in particolare, sono dotate di 4 core e 16 GB di RAM ciascuna. Lo stesso cluster è stato successivamente utilizzato come infrastruttura per l'esecuzione dell'introduzione di rumore e l'esecuzione del modello MLP definiti nel piano sperimentale descritto nel Capitolo~\ref{chap:EmpyricAnalysis}.
 
-Durante la fase di validazione, è emerso che i test eseguiti producevano risultati di perturbazione non deterministici con il backend Spark. La causa risiede nella natura
-probabilistica del campionamento distribuito discussa nella sezione \ref{2.3}: l'approssimazione introdotta da \texttt{sample()} può generare campioni vuoti o di dimensione significativamente diversa da quella attesa, causando il fallimento di asserzioni nei test.
+\subsection{Configurazione SSH tra i nodi}
 
-La soluzione ha comportato due interventi complementari: 
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\item
-  l'incremento delle dimensioni dei dataset utilizzati nei test, portandoli a un ordine di grandezza sufficiente a rendere trascurabile l'errore di campionamento; 
-\item
-  l'adattamento delle soglie di tolleranza nelle asserzioni dei test, accettando una deviazione percentuale minima rispetto al valore atteso quando il backend è Spark. Questo compromesso riflette una proprietà intrinseca dei sistemi distribuiti, in cui la precisione assoluta viene scambiata con la scalabilità.
-\end{enumerate}
+Il primo requisito per il funzionamento di un cluster Spark Standalone 
+è la possibilità per il nodo master di comunicare con i worker via SSH 
+senza autenticazione interattiva. Questa condizione è necessaria affinché 
+il master possa avviare e arrestare i demoni Spark sui nodi remoti tramite 
+gli script \textit{start-all.sh} e \textit{stop-all.sh}.
 
+È stata generata sul master una coppia di chiavi RSA senza passphrase e 
+la chiave pubblica è stata distribuita su ciascun worker tramite 
+\textit{ssh-copy-id}:
 
-% END SFIDE TECNICHE ----------------------------------------
-
-
-
-
-
-
-
-\subsection{Creazione di un cluster Spark}
-
-
-Al fine di validare il backend Spark di PuckTrick in un contesto distribuito reale (e non limitarsi alla modalità locale utilizzata durante lo sviluppo) è stato configurato un cluster Apache Spark in modalità \emph{Standalone} su un insieme di macchine virtuali messe a disposizione dall'Università. L'infrastruttura è composta da un nodo master e quattro nodi worker, con risorse hardware eterogenee: tre macchine virtuali leggere (VM2, VM3, VM4) dotate di 4 core e 16 GB di RAM ciascuna, e una macchina più potente (worker principale) con 16 core e 32 GB di RAM.
-
-\subsection{Configurazione accesso SSH tra i nodi}
-Il primo requisito per il funzionamento di un cluster Spark Standalone è la possibilità per il nodo master di comunicare con i worker via SSH \textbf{senza autenticazione interattiva}. Questa condizione è necessaria affinché il master possa avviare e arrestare i demoni Spark sui nodi remoti tramite gli script \texttt{start-all.sh} e \texttt{stop-all.sh}.
-
-È stata generata sul master una coppia di chiavi RSA senza passphrase e la chiave pubblica è stata distribuita su ciascun worker tramite \texttt{ssh-copy-id}:
-
+\begin{listing}[H]
 \begin{minted}[fontsize=\small, frame=single]{bash}
 ssh-keygen -t rsa -P "" -f ~/.ssh/id_rsa
-
-ssh-copy-id user@worker1
-ssh-copy-id user@worker2
-ssh-copy-id user@worker3
-ssh-copy-id user@worker4
+ssh-copy-id user@10.0.1.4
+ssh-copy-id user@10.0.1.5
+ssh-copy-id user@10.0.1.6
+ssh-copy-id user@10.0.1.7
 \end{minted}
-Questa operazione, ha richiesto la preventiva verifica che il servizio SSH fosse attivo su tutte le macchine e che le regole del firewall consentissero le connessioni in ingresso sulla porta 22.
+\caption{Generazione e distribuzione della chiave SSH dal master ai worker.}
+\label{lst:ssh_setup}
+\end{listing}
 
-\subsection{Registrazione dei worker e configurazione dell'ambiente}
+\subsection{Installazione e configurazione dell'ambiente}
 
-Una volta stabilita la connettività SSH, è stato necessario dichiarare al master l'elenco dei nodi worker. Ciò avviene tramite la creazione del file $$\texttt{\$SPARK\_HOME/conf/workers}$$ Questo contenente gli hostname o gli indirizzi IP dei quattro worker, uno per riga. Questo file viene letto dagli script di orchestrazione di Spark per determinare su quali macchine avviare i processi worker: 
+Apache Spark è stato installato su tutti i nodi del cluster scaricando il pacchetto precompilato dal sito ufficiale e decomprimendolo in una directory dedicata; il percorso di installazione è stato poi esposto tramite la variabile d'ambiente \texttt{SPARK\_HOME}, definita nel profilo di sistema di ciascuna macchina. E' stato necessario dichiarare al master l'elenco dei nodi worker tramite il file \textit{\$SPARK\_HOME/conf/workers}, contenente gli indirizzi IP dei quattro worker, uno per riga. Questo file viene letto dagli script di orchestrazione di Spark per determinare su quali macchine avviare i processi worker.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\linewidth]{images/pucktrick/IPworkes.png}
-    \caption{IP workers}
-\end{figure}
+Il passo successivo è stata la definizione del file \textit{spark-env.sh}, che specifica le variabili d'ambiente critiche per il funzionamento del cluster:
 
-Il passo successivo è stata la definizione del file \texttt{spark-env.sh}, che specifica le variabili d'ambiente critiche per il funzionamento del cluster. I parametri configurati sono stati:
-
+\begin{listing}[H]
 \begin{minted}[fontsize=\small, frame=single]{bash}
 export JAVA_HOME=/usr/lib/jvm/java-17
-
 export SPARK_MASTER_HOST=10.0.1.8
 export SPARK_MASTER_PORT=7077
-
 export SPARK_WORKER_CORES=4
 export SPARK_WORKER_MEMORY=15g
 \end{minted}
+\caption{Configurazione delle variabili d'ambiente in \textit{spark-env.sh}.}
+\label{lst:spark_env}
+\end{listing}
 
-La scelta dei valori di \texttt{SPARK\_WORKER\_CORES} e \texttt{SPARK\_WORKER\_MEMORY} è stata guidata da un principio di allocazione aggressiva ma stabile: poiché le macchine erano dedicate esclusivamente a Spark, si è deciso di assegnare a ciascun worker la quasi totalità delle risorse disponibili, riservando circa 1 GB di RAM e un margine minimo di CPU per il sistema operativo e per il demone Spark stesso. Per il worker principale, dotato di risorse significativamente superiori, si è optato per una configurazione iniziale conservativa (4 core, 15 GB) allineata a quella delle macchine più piccole, con l'intento di evitare che un singolo nodo monopolizzasse l'assegnazione dei task a scapito del bilanciamento del carico.
+La scelta di allocare 4 core e 15 GB per worker riflette un principio di allocazione aggressiva ma stabile: poiché le macchine erano dedicate esclusivamente a Spark, si è assegnata la quasi totalità delle risorse disponibili, riservando circa 1 GB di RAM al sistema operativo e al demone Spark.
 
-\newpage
-\subsubsection{Criticità di questa fase}
+\paragraph{Criticità nella distribuzione dei file di configurazione.} La procedura standard prevede la copia di \texttt{spark-env.sh} dal master ai worker tramite \texttt{scp}. Nel contesto specifico delle macchine utilizzate, questa operazione falliva sistematicamente con errori di tipo \textit{access denied} quando eseguita con privilegi elevati tramite \texttt{sudo}. La soluzione è risultata essere l'esecuzione del comando senza \texttt{sudo}, operando direttamente con l'utente corrente, previa verifica che la directory di destinazione \texttt{\$SPARK\_HOME/conf/} esistesse su ciascun worker e che l'utente disponesse dei permessi di scrittura su di essa.
 
-\textbf{Distribuzione dei file di configurazione.} La procedura standard prevede la copia del file \texttt{spark-env.sh} dal master ai worker tramite \texttt{scp}. Tuttavia, nel contesto specifico delle macchine utilizzate, questa operazione falliva sistematicamente con errori di tipo \emph{access denied}, presumibilmente a causa di permessi insufficienti sulla directory di destinazione o di restrizioni nelle policy di sicurezza delle VM. 
+\subsection{Apertura delle porte di rete}
 
-La soluzione adottata è stata la creazione manuale del file su ciascun nodo, accedendo individualmente via SSH e replicando il contenuto del file di configurazione. Sebbene meno elegante rispetto alla distribuzione automatizzata, questo approccio ha garantito la corretta configurazione di tutti i nodi.
 
-\subsection{Creazione delle directory di logging} 
-Spark richiede la presenza di una directory di lavoro: $$\texttt{\$SPARK\_HOME/work}$$
-con permessi di scrittura per l'utente che esegue i processi. L'assenza di tale directory (non creata automaticamente dall'installazione di Spark) causava il fallimento silenzioso dell'avvio dei worker. È stato necessario creare manualmente la directory su ogni nodo e assegnare i permessi corretti all'utente di servizio.
+Il funzionamento del cluster richiede l'apertura di due porte sul firewall di ciascuna macchina, riportate nella Tabella~\ref{tab:porte_spark}:
 
-\subsection{Apertura delle porte di rete.} 
-Il funzionamento del cluster richiede l'apertura di diverse porte sul firewall di ciascuna macchina:
-
+\begin{listing}[H]
 \begin{minted}[fontsize=\small, frame=single]{bash}
-sudo ufw allow 8080/tcp
-sudo ufw allow 7077/tcp
+sudo ufw allow 7077/tcp   # Spark Master — comunicazione cluster
+sudo ufw allow 8080/tcp   # Web UI del Master
 \end{minted}
-
-Le porte usate sono:
+\caption{Apertura delle porte necessarie al funzionamento del cluster Spark.}
+\label{lst:ufw}
+\end{listing}
 
 \begin{table}[H]
 \centering
@@ -192,201 +275,55 @@ Le porte usate sono:
 \textbf{Porta} & \textbf{Servizio} & \textbf{Direzione} \\
 \midrule
 7077 & Spark Master (comunicazione cluster) & Worker $\rightarrow$ Master \\
-8080 & Web UI del Master & Accesso esterno \\
+8080 & Web UI del Master                    & Accesso esterno \\
 \bottomrule
 \end{tabular}
-\caption{Porte utilizzate dal cluster Spark}
+\caption{Porte utilizzate dal cluster Spark.}
+\label{tab:porte_spark}
 \end{table}
 
-
-La mancata apertura della porta 7077 impedisce ai worker di registrarsi presso il master, producendo un cluster apparentemente attivo ma privo di risorse computazionali. La Web UI sulla porta 8080 si è rivelata uno strumento diagnostico indispensabile per verificare lo stato del cluster, il numero di worker connessi e l'allocazione delle risorse.
-
-\newpage
-
-\subsection{Verifica del funzionamento}
-
-La corretta attivazione del cluster è stata verificata in prima istanza tramite una richiesta HTTP al servizio Web UI del master:
-
-\begin{minted}[fontsize=\small, frame=single]{bash}
-curl -s http://localhost:8080/ | grep -i "spark master"
-\end{minted}
-
-La risposta positiva ha confermato l'avvio del processo master. 
-
-Successivamente, l'accesso alla Web UI ha permesso di verificare la registrazione di tutti e quattro i worker e la corretta allocazione delle risorse (core e memoria) dichiarate nella configurazione:
+La mancata apertura della porta 7077 impedisce ai worker di registrarsi presso il master, producendo un cluster apparentemente attivo ma privo di risorse computazionali. La Web UI sulla porta 8080 si è rivelata uno strumento diagnostico indispensabile per verificare lo stato del cluster, il numero di worker connessi e l'allocazione delle risorse, come visibile in Figura~\ref{fig:dashboardSpark}.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/pucktrick/DashboardSpark.png}
-    \caption{Dashboard Spark}
+    \caption{Dashboard Spark con i quattro worker registrati e le risorse 
+    allocate correttamente.}
     \label{fig:dashboardSpark}
 \end{figure}
 
-
-%-----------------------------------
-
-
-
-
-
-
-\section{Analisi delle performance}
-
-
-\subsection{Analisi dei risultati di performance: confronto Pandas vs Spark}
-
-Una volta finito il setup remoto della libreria siamo potuti procedere con l'analisi delle performance di libreria.
-
-\subsubsection{Protocollo sperimentale}
-
-Il benchmark di confronto è stato eseguito su un dataset sintetico (\texttt{fake\_dataset.csv}) contenente \textbf{1.000.000 di righe} con colonne di diversa tipologia: 
-\begin{itemize}
-\item
-  f1: colonna di tip float
-\item
-  f2: colonna di tipo int (insieme numeri interi)
-\item
-  f3: colonna categorica (string) con 3 classi
-\item
-  f4: colonna categorica (string) con 3 classi
-\item
-  f5: colonna categorica (int) con 6 classi
-\item
-  date: colona di tipo data
-\item
-  target: colonna di tipo binaria
-\end{itemize}
-
-Questa scelta progettuale è fondamentale per l'interpretazione dei risultati, poiché il tipo di dato della colonna influenza in modo determinante le performance dei backend Pandas e Spark
-
-Ciascun modulo di iniezione errori è stato eseguito su ogni colonna singolarmente, applicando la medesima strategia per ambi i backend:
-
-\begin{minted}[fontsize=\small, frame=single]{json}
-{
-  "affected_features": ["<colonna>"],
-  "mode": "new",
-  "percentage": 0.5,
-  "perturbate_data": {
-    "distribution": "random"
-  },
-  "selection_criteria": "all"
-}
-\end{minted}
-
-L'esecuzione è stata sequenziale (con pulizia della memoria tra un esecuzione e l'altra). I
-tempi sono stati misurati e salvati in formato CSV \cite{SparkStressTest}, del quale grafichiamo i risultati di seguito \ref{fig:Risultatiraggrupatiperbackend}.
-
-\subsubsection{Disclaimer:}
-Come possibile vedere dall'immagine a pagina seguente, il metodo \texttt{labels} è stato fatto runnare solo sul seguente subset di colonne: 
-
-\begin{itemize}
-\item
-  f3: colonna categorica (string) con 3 classi
-\item
-  f4: colonna categorica (string) con 3 classi
-\item
-  f5: colonna categorica (int) con 6 classi
-\item
-  target: colonna di tipo binaria
-\end{itemize}
-
-Questo scelta è causata del fatto che questo metodo introduce rumore di etichetta nelle colonne selezionata sipportando però solo target binari o categorici.
-
 \newpage
 
-\subsubsection{Risultati del Paragone tra Backends}
+\subsection{Filesystem condiviso via NFS}
+\label{subsec:nfs}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/pucktrick/full-runs.png}
-    \caption{Risultati raggrupati per backend e per metodo}
-    \label{fig:Risultatiraggrupatiperbackend}
-\end{figure}
+Il backend Spark di PuckTrick carica i dataset da filesystem locale: poiché i processi worker vengono eseguiti su VM distinte, è necessario che i file siano accessibili da tutti i nodi in modo trasparente. A tal fine, la directory home del master è stata esportata tramite \textit{nfs-kernel-server} e montata su ciascun worker tramite \textit{/etc/fstab}.
 
-Osservando l'immagine precedente \ref{fig:Risultatiraggrupatiperbackend} risulta evidente ci siano 2 gruppi: 
-\begin{itemize}
-\item
-  metodi di libreria la quale implementazione Pandas risulta sempre più veloce rispetto a Spark (comprende i metodi \texttt{duplicated} e \texttt{missing})
-\item
-  metodi di libreria che presentano grosse differenze tra tempi di computazione dei due backend (comprende i metodi \texttt{noise}, \texttt{outlier} e \texttt{labels})
-\end{itemize}
+La configurazione lato master richiede la definizione delle regole di export nel file \textit{/etc/exports}:
 
-\subsubsection{Metodi complessità computazionale bassa:  \texttt{duplicated} e \texttt{missing}}
-
-A primo impatto può semprare strano che, pur avendo un dataset da un milione di righe, ci possano essere dei metodi che seppur usando il backend Pandas risultino essere più veloci rispetto a Spark. 
-
-In secondo luogo però dopo una riflessione più attenta questo risultato è perfettamente deducibile: i moduli \texttt{duplicated} e \texttt{missing} sono implementati da delle operazione di complessità computazionale estremamente bassa! Di conseguenza si avrà che la spiegazione di questo divario di tempi computazionali tra Pandas (circa 0.5 secondi) e Spark (circa 2 secondi) risiede nell'\textbf{overhead strutturale} del framework Spark. Abbiamo infatti che per il modulo Spark viene sempre eseguita la compilazione del piano di esecuzione (DAG), la serializzazione dei dati tra il driver Python e la JVM, la gestione delle partizioni e il coordinamento dell'esecuzione distribuita. Tutti questi fattori introducono un costo fisso stimabile in circa 1.2--1.5 secondi che, per operazioni intrinsecamente semplici su dataset che non eccedono la capacità della memoria di una singola macchina, non viene ammortizzato da alcun guadagno nella parallelizzazione.
-
-È significativo inoltre notare come la prima esecuzione di Spark \texttt{duplicated} (\texttt{f1}, 2.58s) sia sensibilmente più lenta delle successive (1.65--1.98s), un fenomeno attribuibile al ``warm-up'' della JVM e alla compilazione JIT (Just-In-Time) del bytecode durante la prima invocazione. Questo fenomeno è infatti osservabile per tutti i metodi Spark che operano sulla prima colonna (f1). Togliendo infatti circa 1.5 dai tempi di computazione di ciasuna elaborazione fatta su questa colonna si hanno tempo di esecuzione pressapoco allineati per tutti i metodi Spark, nonostrante ci sono delle eccezzioni a questa regola. 
-
-\subsubsection{Metodi complessità computazionale alta:  \texttt{noise}, \texttt{outlier} e \texttt{labels}}
-
-\textbf{Nota:} Prima di discutere i risultati compiuti da questi metodi si fa una piccola nota sul metodo  \texttt{labels}; potrebbe infatti sembrare che questo metodo ricada nella casistica precedente, avendo che tutti i risultati ottenuti da backend Pandas abbiano tempi computazine molto inferiori rispetto che tempi con Spark. Questo però è devuto al fatto che per la nostra casistica abbiamo che tutte le colonne fornite al metodo \texttt{labels} hanno pochiessime classi al loro interno:
-\begin{itemize}
-\item
-  f3: 3 classi
-\item
-  f4: 3 classi
-\item
-  f5: 6 classi
-\item
-  target: 2 classi
-\end{itemize}
-
-Questo porta il metodo ad avere tempi di esecuzione estremamente bassi. Si ha infatti  \texttt{labels} (Nella sua implementazione Pandas) ha complessità direttamente proporzionale al numero di classi inserito. Provando infatti ad aumentare di molto il numero di classi si inzierebbero a notare tempi di computazione estremamente più alti; che superano di gran lunga i tempi di Spark. Essendo dunque la complessità di questo metodo molto alta quando proporzionata al numero di classi specificate si considera il metodo \texttt{labels} come appartenente a questa sezione. 
-
-Se osserviamo dunque i tempi di esecuzione, per i metodi con complessità computazionale di calcolo maggiore, possiamo trovare una netta differenza tra il tempo impiegato da Pandas e quello impiegato da Spark. Emerge infatti una disparità di costo per tipo di dato e metodo usato nel backend Pandas. Abbiamo che questa disparità può essere sintetizzata come:
-
-$$\text{float} < \text{int} < \text{string} < \text{date}$$
-
-I tempi Spark, al contrario, sono \textbf{straordinariamente uniformi} attraverso tutti i tipi di dato con valori compresi tra 2 e 8 secondi, indipendentemente dal tipo della colonna. Questa uniformità (e ampio miglioramento rispetto le performance di Pandas) è una conseguenza diretta del paradigma colonnare di Spark: tutte le operazioni (che si tratti di perturbazione di float, sostituzione di stringhe o manipolazione di interi categorici) vengono compilate dal Catalyst Optimizer in piani di esecuzione nativi JVM; ed eseguite sulle partizioni in parallelo, senza mai transitare per l'interprete Python e senza subire il costo differenziale dei tipi di dato (che penalizza Pandas). Abbiamo infatti che la gerarchia ti tempi proporzionali ai tipi ossrevata nel Backend Pandas scompare completamente in Spark. Rimane però un unica eccezione per la colonna \texttt{date} (60.6 secondi) nell'esecuzione della funzione \texttt{Noise}, questa risalta per le sue tempistiche di esecuzione particolarmente alte rispetto tutte le altre istanze Spark.
-
-La ragione fondamentale di questa disparità risiede nella definizione stessa della funzione nel backend Spark. Questa funzione esprime infatti la stessa logica applicata dal backend Pandas (perturbazione tramite cicli Python che iterano su ciascuna riga selezionata, applicando trasformazioni individuali) ma tramite trasformazioni colonnari native (\texttt{withColumn}, \texttt{when}, \texttt{rand()}) che vengono compilate in codice JVM ottimizzato ed eseguite senza mai transitare per l'interprete Python. Avendo, però, creato una riproduzione fedele del codice Pandas nel backend Spark ha portato alla stesura di codice non ottimizzato per la gestione delle colonne di tipo data. Possiamo, infatti, osservare che anche per il backend Pandas il tipo data porta ad avere sempre elaborazioni più lunghe usando il metodo \texttt{Noise}.
-
-Abbiamo dunque che i risultati del benchmark delle righe delineano un quadro chiaro e coerente: A 1 milione di righe, Spark è già vantaggioso per \texttt{noise}, \texttt{outlier} e \texttt{labels} su tutti i tipi di colonna; e lo è in modo schiacciante sulle colonne stringa e date. Mentre abbiamo che per \texttt{duplicated} e \texttt{missing} il punto di pareggio si colloca a volumi di dati superiori, dove l'overhead fisso di Spark diventa trascurabile rispetto al tempo di elaborazione.
-
-\newpage
-
-\subsection{Spark stress test}
-I risultati dello stress test con metodo \texttt{duplicated} su cluster remoto Spark \textbf{\cite{SparkStressTest}} mostrano un comportamento di scalabilità sostanzialmente lineare: partendo da circa 3,6 secondi per 1 milione di righe, il tempo per singola iterazione raddoppia progressivamente man mano che il dataset raddoppia, arrivando a $\sim$84,6 secondi per 128 milioni di righe
-
-È interessante osservare che le prime tre iterazioni (1M, 2M e 4M di righe) presentano tempi molto simili tra loro (circa 3/3,5 sec), suggerendo che a bassa cardinalità il costo dominante è la fase di inizializzazione del job Spark piuttosto che il volume dati effettivo .
-
-A partire dagli 8 milioni di righe il comportamento diventa sempre più proporzionale al dato, con la curva che scala in modo quasi perfettamente lineare, visibile chiaramente nel grafico sotto riportato [Figura \ref{fig:sparkProgressivo}], senza segnali di colli di bottiglia anomali, collisioni di shuffle o degrado delle risorse del cluster fino a 128M di righe. 
-
-La strategia adottata \textbf{[strategia \ref{strategia}]}, riportata  è stata applicata coerentemente in tutte le 8 iterazioni, confermando che la linearità osservata è intrinseca al metodo \texttt{duplicated} e non a variazioni nei parametri di test.
-
-In sintesi, il metodo si dimostra scalabile e prevedibile su cluster Spark remoto, con un tempo totale di circa 173,6 secondi per l'intera suite da 128M di righe, il che lo rende adatto a dataset di grandi dimensioni in produzione, a patto di considerare il fisso overhead iniziale per job di dimensioni ridotte.
-
-\subsubsection{Strategy di Test Utilizzata}
-La configurazione della strategy è codificata in JSON e passata al framework PuckTrick:
-
-\label{strategia}
-\begin{minted}[linenos, fontsize=\footnotesize]{json}
-{
-  "affected_features": ["f1"],
-  "mode": "new",
-  "percentage": 0.5,
-  "perturbate_data": {
-    "distribution": "random"
-  },
-  "selection_criteria": "all"
-}
+\begin{listing}[H]
+\begin{minted}[fontsize=\small, frame=single]{bash}
+# /etc/exports sul master
+/home/user 10.0.1.0/24(rw,sync,no_subtree_check,no_root_squash)
 \end{minted}
+\caption{Configurazione NFS sul nodo master: export della directory condivisa 
+verso la subnet del cluster.}
+\label{lst:nfs_exports}
+\end{listing}
 
-Vengono riportati adesso i dati graficati:
+Su ciascun worker è stato aggiunto il mount permanente in \textit{/etc/fstab}, in modo che la directory venga montata automaticamente a ogni riavvio:
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/pucktrick/SparkProgressivo.jpg}
-    \caption{Comportamento in termini di tempo di Spark allo scalare della grandezza del dataset}
-    \label{fig:sparkProgressivo}
-\end{figure}
+\begin{listing}[H]
+\begin{minted}[fontsize=\small, frame=single]{bash}
+# /etc/fstab sui worker
+10.0.1.8:/home/user /home/user nfs defaults  0  0
+\end{minted}
+\caption{Mount permanente del filesystem NFS sui nodi worker tramite 
+\textit{/etc/fstab}.}
+\label{lst:nfs_fstab}
+\end{listing}
 
-
-
-
-
+Grazie a questa configurazione, il driver scrive i dataset nella directory condivisa e tutti i worker li leggono dallo stesso path, rendendo trasparente la distribuzione dei dati all'interno del cluster senza necessità di copie esplicite tra i nodi.
 
 
 

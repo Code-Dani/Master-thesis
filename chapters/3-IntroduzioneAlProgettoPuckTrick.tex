@@ -72,7 +72,6 @@ Per ovvie ragioni questo parametro è del tutto opzionale è può essere tranqui
 \newpage
 
 Internamente, ciascuno dei cinque metodi di iniezione del rumore delega l'esecuzione al modulo corrispondente nel backend selezionato. I due moduli condividono la stessa interfaccia contrattuale ma differiscono nell'implementazione: il backend Pandas opera in modo \textit{eager} su strutture dati in memoria, mentre il backend Spark costruisce un piano di esecuzione \textit{lazy} (DAG) ottimizzato dal Catalyst Optimizer e distribuito su tutti i nodi del cluster.
-
 La Figura~\ref{fig:pucktrickArchitecture} illustra questa struttura a livelli.
 \begin{figure}[H]
     \centering

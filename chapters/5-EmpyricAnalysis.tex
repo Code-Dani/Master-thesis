@@ -114,12 +114,13 @@ Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossVa
 
 \newpage
 \subsection{Risultati}
+I risultati mostrano un comportamento nettamente diverso in funzione della tipologia di rumore introdotto, in particolare, il rumoresulle etichette produce una degradazione severa e statisticamente significativa su entrambe le metriche, mentre il rumoreapplicato alle feature tramite \textit{missing}, \textit{noisy} e \textit{outliers} determinano un impatto contenuto sull'F1-score weighted, ma più visibile sull'AUC-ROC, in particolare sulla feature \textbf{Oil\_temperature}. 
 
-I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore \textit{labels} introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti.
-Tutti i risultati sono stati riportati nelle tabelle~\ref{tab:mlp_duplicated}, ~\ref{tab:mlp_labels}, ~\ref{tab:mlp_missing}, ~\ref{tab:mlp_noisy} e~\ref{tab:mlp_outliers}.
-\paragraph{Labels:} come mostrato nelle figure~\ref{fig:F1-scoreRumore} 
-e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, applicato al target del dataset, produce la degradazione più severa tra tutti i tipi di rumore testati. L'F1-score al 50\% di rumore crolla da una baseline $0.9750$  fino ad arrivare a $0.6166$, l'AUC-ROC invece, riflette fin da subito il deterioramento del dataset e già il 10\% del dataset sporcato con il rumore introdotto da label è abbastanza per far crollare la metrica da una baseline di $0.9591$ al valore $0.7897$. E' possibile visionare la baseline nella tabella~\ref{tab:mlp_baseline}.
+Il rumore di tipo \textit{duplicated} non produce alcun effetto misurabile. 
+Tutti i risultati sono riportati nelle tabelle~\ref{tab:mlp_baseline},\ref{tab:mlp_duplicated}, \ref{tab:mlp_labels}, \ref{tab:mlp_missing}, \ref{tab:mlp_noisy} e~\ref{tab:mlp_outliers}.
 
+\paragraph{Labels:} I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore \textit{labels} introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti.
+come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, applicato al target del dataset, produce la degradazione più severa tra tutti i tipi di rumore testati. L'F1-score al 50\% di rumore crolla da una baseline $0.9750$  fino ad arrivare a $0.6166$, l'AUC-ROC invece, riflette fin da subito il deterioramento del dataset e già il 10\% del dataset sporcato con il rumore introdotto da label è abbastanza per far crollare la metrica da una baseline di $0.9591$ al valore $0.7897$. E' possibile visionare la baseline nella tabella~\ref{tab:mlp_baseline}.
 
 \paragraph{Duplicated:} come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti la F1-score rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline (Tabella~\ref{tab:mlp_baseline}). Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$.
 
@@ -128,16 +129,20 @@ e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, appli
 
 Il calcolo è effettuato tramite \texttt{MulticlassClassificationEvaluator} di Spark MLlib con \texttt{metricName="f1"}, che restituisce il F1-score pesato per il supporto di classe (\textit{weighted}), equivalente ad \texttt{average="weighted"} in scikit-learn~\cite{scikit-learn}.
 
-Il F1-score weighted si mantiene complessivamente stabile all'aumentare della percentuale di rumore per quasi tutte le tipologie di corruzione testate. A 50\% di rumore, la degradazione massima osservata su \texttt{Missing}, \texttt{Noisy} e \texttt{Outliers} è di $0.0167$ punti rispetto alla baseline ($0.9750 \pm 0.0007$), registrata per \texttt{Noisy} su \texttt{Oil\_temperature} (Tabella~\ref{tab:mlp_noisy}), con intervalli di confidenza al 95\% che si sovrappongono quasi interamente a quelli della condizione pulita.
+Il F1-score weighted si mantiene complessivamente stabile all'aumentare della percentuale di rumore per quasi tutte le tipologie di corruzione testate. A 50\% di rumore, la degradazione massima osservata su \texttt{Missing}, \texttt{Noisy} e \texttt{Outliers} è di $0.0167$ punti rispetto alla baseline ($0.9750 \pm 0.0007$, Tabella~\ref{tab:mlp_baseline}), registrata per \texttt{Noisy} su \texttt{Oil\_temperature} (Tabella~\ref{tab:mlp_noisy}), con intervalli di confidenza al 95\% che si sovrappongono quasi interamente a quelli della condizione pulita.
 
-Tuttavia, questa stabilità non deve essere interpretata come robustezza del modello, ma come un artefatto della distribuzione delle classi nel dataset MetroPT-3. Il F1-score weighted pondera il contributo di ciascuna classe in proporzione al suo supporto: con il 98\% dei campioni appartenenti alla classe \textit{Senza guasti}, la metrica è strutturalmente dominata da essa. Una degradazione nella capacità discriminativa del modello sulla classe \textit{Guasto} viene quindi assorbita dal peso preponderante della classe maggioritaria, risultando di fatto invisibile nella metrica aggregata. Per questo motivo, l'AUC-ROC, che misura la qualità del ranking indipendentemente dalla distribuzione delle classi, costituirà la metrica primaria di questa analisi, mentre il F1-score weighted viene mantenuto come misura di stabilità globale del modello.
+Tuttavia, questa stabilità non deve essere interpretata come robustezza del modello, ma come un artefatto della distribuzione delle classi nel dataset MetroPT-3, già descritta nel Capitolo~\ref{chap:DatasetAnalysis} e visibile in figura~\ref{fig:targetDistribution}. Il F1-score weighted pondera il contributo di ciascuna classe in proporzione al suo supporto: con il 98\% dei campioni appartenenti alla classe \textit{senza guasti}, la metrica è strutturalmente dominata da essa, come documentato in letteratura per i modelli deep learning su dataset sbilanciati~\cite{buda2018systematic, johnson2019survey}. Una degradazione nella capacità discriminativa del modello sulla classe \textit{Guasto} viene quindi assorbita dalla quantità di informazioni della classe maggioritaria, risultando di fatto invisibile nella metrica aggregata. Per questo motivo, l'AUC-ROC, la quale misura la qualità del ranking indipendentemente dalla distribuzione delle classi, costituirà la metrica principale di questa analisi, mentre l'F1-score weighted viene mantenuto come misura di stabilità globale del modello.
 
-L'unica eccezione a questo pattern è il rumore di tipo \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo. A differenza degli altri tipi di corruzione, il rumore sulle etichette altera direttamente il segnale di supervisione durante il training: il modello non riceve più informazioni corrette sulla classe target, indipendentemente dalla qualità delle feature in ingresso. Questo porta a una degradazione che non può essere mascherata dalla distribuzione sbilanciata delle classi, producendo un crollo del F1-score da $0.9750 \pm 0.0007$ a $0.6166 \pm 0.0741$ al 50\% di rumore (Tabella~\ref{tab:mlp_labels}).
+L'unica eccezione a questo pattern è il rumore di tipo \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo, come visibile nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore}. A differenza degli altri tipi di corruzione, il rumore sulle etichette altera direttamente il segnale di supervisione durante il training: il modello non riceve più informazioni corrette sulla classe target, indipendentemente dalla qualità delle feature in ingresso~\cite{zhang2017understandingdeeplearningrequires}. Questo porta a una degradazione che non può essere mascherata dalla distribuzione sbilanciata delle classi, producendo un crollo del F1-score da $0.9750 \pm 0.0007$ a $0.6166 \pm 0.0741$ al 50\% di rumore(Tabella~\ref{tab:mlp_labels}).
 
 \subsubsection{AUC-ROC:}
+L'analisi dell'AUC-ROC per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} rivela un comportamento asimmetrico tra le tre feature testate: \textbf{Oil\_temperature} degrada sistematicamente, mentre \textbf{DV\_Pressure} e \textbf{TP3} mostrano una resistenza marcata. Le cause sono riconducibili a proprietà strutturali del dataset menzionate nell'analisi esplorativa (Capitolo~\ref{chap:DatasetAnalysis}).
+
 Ci sono diverse possibili cause per la discrepanza tra le feature, in particolare possiamo notare dalle immagini~\ref{fig:AUC-scoreRumore} che per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} la metrica che degrada maggiormente è \textbf{Oil\_temperature}. Il motivo per il quale le performance non degradano per le altre due feature come invece fa per \textbf{Oil\_temperature} è probabilmente dovuto a proprietà intrinseche del dataset che non sono state prese in considerazione durante l'operazione di analisi del dataset.
 
-\paragraph{DV\_Pressure:} questa è l'unica metrica digitale tra le tre, ma la cosa che la contraddistingue maggiormente, come citato nella documentazione del dataset~\cite{MetroDT} è che presenta sempre un valore pari a $0$ e cambia valore solo se è presente un guasto, indicando, come spiegato nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) un cambio di pressione anomalo. Come possiamo vedere in figura~\ref{fig:featureDistribution} la sua distribuzione è netta e distinta, passando da $0$ ad un valore superiore, in questo caso $5$, avendo una distribuzione di questo tipo la feature è praticamente un interruttore binario e per questo il modello reagisce bene. Tuttavia per i rumori introdotti da \textit{outlier} e \textit{missing}, i valori sono al di sotto dell'intervallo di confidenza, indicando un degrado nonostante in termini di valori assoluti non sia fin da subito visibile. Per \textit{noisy} invece la situazione è diversa, infatti vediamo che il modello non è stato impatto per niente dal rumore applicato, ma questo è spiegabile anche dal fatto che il 98\% dei dati della feature sono zeri (senza guasti), mentre il restante sono valori maggiori di zero. Il noisy della libreria PuckTrick~\cite{agostini2025pucktricklibrarymakingsynthetic} utilizza la seguente formula~\ref{lst:noisy_formula}:
+\paragraph{DV\_Pressure:} questa è l'unica metrica digitale tra le tre, ma la cosa che la contraddistingue maggiormente, come citato nella documentazione del dataset~\cite{MetroDT} è che presenta sempre un valore pari a $0$ e cambia valore solo se è presente un guasto, indicando, come spiegato nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) un cambio di pressione anomalo. Come possiamo vedere in figura~\ref{fig:featureDistribution} la sua distribuzione è netta e distinta, passando da $0$ ad un valore superiore, in questo caso $5$, avendo una distribuzione di questo tipo la feature è praticamente un interruttore binario e per questo il modello reagisce bene. Tuttavia per i rumori introdotti da \textit{outlier} e \textit{missing}, i valori sono al di sotto dell'intervallo di confidenza, indicando un degrado nonostante in termini di valori assoluti non sia fin da subito visibile. Per \textit{noisy} invece la situazione è diversa, infatti vediamo che il modello non è stato impatto per niente dal rumore applicato, ma questo è spiegabile anche dal fatto che il 98\% dei dati della feature sono zeri (senza guasti), mentre il restante sono 5 (con guasti). 
+
+Il metodo \textit{noisy} genera valori uniformi in $[0, 5]$ (formula~\ref{lst:noisy_formula}), introducendo nei campioni senza guasto valori distribuiti attorno a $2.5$, sufficientemente distanti dal valore di guasto ($5$) da non compromettere la separabilità delle classi.
 
 \begin{listing}[H]
 \begin{minted}{python}
@@ -184,26 +189,7 @@ questa feature non dispone di alcuna proprietà strutturale che ne attenui l'imp
     \label{fig:AUC-scoreRumore}
 \end{figure}
 
-
-%\begin{figure}[H]
-    %\centering
-    %\includegraphics[width=1\linewidth]{images/Results/mlp_heatmap_auc.png}
-    %\caption{MLP heatmap con metrica AUC}
-    %\label{fig:MLP_heatmap_auc}
-%\end{figure}
-
-
-%\begin{figure}[H]
-    %\centering
-    %\includegraphics[width=1\linewidth]{images/Results/mlp_heatmap_degradation.png}
-    %\caption{MLP heatmap con metrica F1-score}
-    %\label{fig:MLP_heatmap_degradation}
-%\end{figure}
-
 \newpage
-
-
-
 
 
 \subsection{Tabelle di riferimento per MLP}

@@ -13,7 +13,7 @@ Per valutare l'impatto del rumore su modelli deep learning tabulari e applicati 
 Il dataset è stato scelto per tre ragioni principali. In primo luogo, è privo di valori mancanti, il che consente di misurare con precisione l'effetto del rumore introdotto artificialmente da Pucktrick, senza interferenze dovute dalla presenza di valori pre-esistenti. In secondo luogo, per la sua natura temporale, che ci permette l'utilizzo di modelli che sfruttano quell'informazione. In terzo luogo, la sua dimensione, la quale giustifica pienamente l'utilizzo del cluster Apache Spark per l'elaborazione distribuita.
 
 Il dataset è distribuito privo di etichette, tuttavia gli autori hanno rilasciato un \textit{report 
-dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \textit{Air Leak} verificatisi nel periodo coperto dal dataset. A partire da questo report è stata generata la colonna \texttt{target} ed è stato assegnato il valore \textbf{1} a tutte le righe il cui timestamp ricade all'interno di uno degli intervalli di guasto, e \textbf{0} a tutte le righe rimanenti. 
+dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \textit{Air Leak} verificatisi nel periodo coperto dal dataset. A partire da questo report è stata generata la colonna \texttt{target} con valore \textbf{1} a tutte le righe il cui timestamp ricade all'interno di uno degli intervalli di guasto, e \textbf{0} a tutte le righe rimanenti. 
 
 
 % tabella schema dataset %
@@ -76,15 +76,35 @@ Il dataset risultante è fortemente sbilanciato: come visibile in Figura~\ref{fi
 \end{figure}
 
 
-Per via della natura del dataset, la metrica di valutazione principale scelta è l'\textbf{F1-score}, che bilancia precisione e recall ed è più informativa dell'accuracy in presenza di classi sbilanciate, penalizzando in modo esplicito i falsi negativi, ovvero i guasti non rilevati, questo è importante perchè nel nostro caso l'accuracy non è affidabile siccome un modello che predice la classe maggioritaria (target=0) raggiungerebbe il 98\% di accuracy pur non rilevando alcun guasto.
-
-La \textbf{F1-Score} viene calcolata con la media armonica tra precision e recall come in equazione~\ref{eq:f1}:
+Per via della natura sbilanciata del dataset (98\% senza guasti), le metriche principali scelte sono l'\textbf{F1-score} e l'\textbf{AUC-ROC}. L'F1-score per ogni classe si basa sulla media armonica tra precision e recall (equazione~\ref{eq:f1}).
 
 \begin{align}
-F_1 &= 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}  \label{eq:f1}
+    F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}
+    {\text{Precision} + \text{Recall}} \label{eq:f1}
 \end{align}
 
-dove la \textit{precision} predice quanti dei guasti predetti erano reali, mentre la \textit{recall} misura quanti dei guasti reali sono stati correttamente identificati.
+dove la \textit{precision} indica quanti dei guasti predetti erano reali, mentre la \textit{recall} misura quanti dei guasti reali sono stati correttamente identificati.
+
+Nel caso di MLlib, la metrica di default è l'\textbf{F1-score weighted}, che calcola l'F1 separatamente per ciascuna classe e ne fa la media pesata in funzione del numero di esempi reali per classe:
+
+\begin{align}
+    \text{F1-weighted} = \frac{n_0 \cdot \text{F1}_0 + 
+    n_1 \cdot \text{F1}_1}{n_0 + n_1} \label{eq:f1w}
+\end{align}
+
+con $n_0 = 1.486.994$ (senza guasti) e $n_1 = 29.954$ (guasti). In questo modo, l'F1-weighted riflette la distribuzione effettiva del dataset e fornisce una misura del degrado di performance complessiva quando le feature principali vengono contaminate dal rumore.
+
+L'\textbf{AUC-ROC} misura la capacità discriminante del modello indipendentemente dalla soglia di decisione, come area sotto la curva ROC che mette in relazione il True Positive Rate (TPR) e il False Positive Rate (FPR):
+
+\begin{align}
+    \text{AUC-ROC} = \int_0^1 \text{TPR}(\text{FPR}) \, 
+    d\text{FPR} \label{eq:roc}
+\end{align}
+
+dove $\text{TPR} = \frac{\text{TP}}{\text{TP} + \text{FN}}$ rappresenta la frazione di guasti reali correttamente rilevati, e $\text{FPR} = \frac{\text{FP}}{\text{FP} + \text{TN}}$ la frazione di casi normali erroneamente classificati come guasti. Un'AUC pari a 1 indica separazione perfetta tra le classi; un'AUC pari a 0.5 corrisponde a un classificatore casuale.
+
+L'\textbf{AUC-ROC} non è utilizzata per valutare le prestazioni assolute, per cui sarebbe preferibile la PR-AUC in presenza di classi sbilanciate, bensì come misura \textit{comparativa}: l'obiettivo è quantificare la degradazione della capacità discriminante al crescere del rumore.
+
 
 \newpage
 
@@ -149,7 +169,7 @@ durante il guasto, spiega fisicamente perché nella sezione successiva vedremo c
 \section{Selezione delle feature}
 Prima di procedere con il training dei modelli deep learning, è stata condotta un'analisi sistematica per identificare le feature più informative e ridurre la dimensionalità del dataset. Sono stati confrontati tre approcci distinti, tutti implementati tramite le API di Spark MLlib.
 
-In questa fase si è scelto di utilizzare l'\textbf{AUC-ROC} come metrica di confronto tra gli approcci, anziché l'F1-score adottato nella valutazione finale. L'AUC-ROC è una metrica \textit{threshold-independent}: misura la capacità discriminativa del modello indipendentemente dalla soglia di classificazione, rendendola più adatta a confrontare sottoinsiemi di feature diversi in fase di selezione, dove l'obiettivo è valutare il potenziale informativo delle feature e non le performance operative del modello. L'F1-score verrà invece utilizzato come metrica principale nella fase sperimentale, dove è necessario fissare una soglia di decisione per simulare condizioni operative realistiche e misurare l'impatto del rumore in termini di guasti effettivamente rilevati.
+In questa fase si è scelto di prediligere l'\textbf{AUC-ROC} come metrica di confronto tra gli approcci, anziché l'F1-score in quanto è una metrica \textit{threshold-independent} rendendola più adatta a confrontare sottoinsiemi di feature diversi in fase di selezione, dove l'obiettivo è valutare il potenziale informativo delle feature e non le performance operative del modello. L'F1-score verrà invece utilizzata in combinazione con la AUC-ROC nella fase sperimentale.
 
 \subsection{Approcci confrontati}
 

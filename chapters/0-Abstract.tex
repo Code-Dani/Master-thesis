@@ -10,7 +10,12 @@ Il lavoro si appoggia su Pucktrick \cite{agostini2025pucktricklibrarymakingsynth
 Il contributo della tesi è articolato su quattro fronti: (1) il porting su Spark dei metodi di Pucktrick per i dati tabulari; (2) il design sperimentale basato su multiple run (20 seed diversi per combinazione) con misurazione di intervalli di confidenza al 95\% su entrambi i domini; (3) un'analisi empirica comparativa tra architetture DL (MLP per dati tabulari; LSTM per serie temporali) per identificare quali modelli risultano più robusti a diversi tipi di errore.
 
 
-\LARGE{\textbf{\red{mancano conclusioni }}}
+I risultati empirici sul modello MLP mostrano che il rumore sulle etichette (\textit{labels}) è la tipologia di corruzione più destabilizzante: l'F1-score degrada da $0.9750$ a $0.6166$ e l'AUC-ROC crolla da $0.9591$ a $0.5119$
+al 50\% di rumore, confermando la tendenza dei modelli DL a memorizzare il rumore di supervisione documentata in letteratura~\cite{zhang2017understandingdeeplearningrequires}.
+
+Il rumore \textit{duplicated} risulta invece completamente ininfluente sulle prestazioni. Per le tipologie \textit{missing}, \textit{noisy} e \textit{outlier}, l'impatto è contenuto sull'F1-score ma visibile sull'AUC-ROC, con differenze significative tra le feature: \texttt{Oil\_temperature} risulta la più vulnerabile, \texttt{TP3}
+è protetta dalla sua correlazione perfetta con \texttt{Reservoirs} e \texttt{DV\_pressure} dalla sua natura quasi-binaria.
+\red{[I risultati LSTM verranno integrati al completamento delle 20 esecuzioni ufficiali.]}
 
 
 \end{document}

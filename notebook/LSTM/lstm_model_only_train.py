@@ -48,7 +48,7 @@ ALL_FEATURES = [
 ]
 LABEL_COL  = "target"
 N_FEATURES = len(ALL_FEATURES)
-N_RUNS     = 5   # seed 0..4
+N_RUNS     = 20
 SEEDS      = list(range(N_RUNS))
 
 NOISE_FEATURES = ["DV_pressure_scaled", "Oil_temperature_scaled", "TP3_scaled"]

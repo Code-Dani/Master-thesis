@@ -33,7 +33,7 @@ Di seguito vengono analizzati le cinque tipologie di rumore che verranno applica
 I duplicati in un dataset sono righe o osservazioni identiche (o quasi) che si ripetono più volte. Rappresentano una \textit{ridondanza nei dati}, dove la stessa combinazione di valori applicata a tutte (o quasi tutte) le feature, appare ripetutamente. Ci possono essere diverse cause per le quali questo tipo di rumore può essere presente all'interno di un dataset. Tra le cause più comuni vi è la fusione di dati provenienti da fonti eterogenee.
 La presenza di duplicati all'interno del training set può impattare negativamente le prestazioni del modello in due modi principali. Il primo riguarda la distorsione delle metriche: se i duplicati sono presenti sia nel training che nel validation set, le metriche di valutazione risultano artificialmente gonfiate, producendo una stima ottimistica delle prestazioni reali. Il secondo riguarda l'overfitting: il modello viene esposto ripetutamente agli stessi pattern, riducendo la diversità effettiva del training set e compromettendo la capacità di generalizzazione su dati non visti.
 
-Tuttavia, Maurino, nel suo paper "How Data Quality Affects Machine Learning Models for Credit Risk Assessment" \cite{maurino2025data} rileva un risultato controintuitivo: in ambito machine learning, i modelli con rumore duplicato introdotto ottengono prestazioni superiori rispetto alla baseline su otto dei dieci modelli testati. È degno di nota che l'unico modello con architettura deep learning incluso nell'analisi (MLP) mostri invece una degradazione delle prestazioni, suggerendo che i modelli deep potrebbero essere più sensibili alla presenza di duplicati rispetto ai modelli ML classici. Questo aspetto verrà analizzato nel dettaglio nel Capitolo~\ref{chap:EmpyricAnalysis}.
+Tuttavia, Maurino, nel suo paper "How Data Quality Affects Machine Learning Models for Credit Risk Assessment" \cite{maurino2025data} rileva un risultato controintuitivo: in ambito machine learning, i modelli con rumore duplicato introdotto ottengono prestazioni superiori rispetto alla baseline su otto dei dieci modelli testati. È degno di nota che l'unico modello con architettura deep learning incluso nell'analisi (MLP) mostri invece una degradazione delle prestazioni, suggerendo che i modelli deep potrebbero essere più sensibili alla presenza di duplicati rispetto ai modelli ML classici. Tuttavia, questo risultato, ottenuto su un dataset di credit risk, non trova conferma nei risultati sperimentali di questa tesi, come discusso nel Capitolo~\ref{chap:EmpyricAnalysis}.
 
 \subsection{Rumore sulle etichette}
 Il rumore sulle etichette indica casi dove nel dataset l'etichetta assegnata ad una riga è errata rispetto la realtà. Si tratta di dati rumorosi causati prevalentamente da errori umani \cite{Geiger_2021} o scraper web errati, i quali, durante la fase di labelling introducono errori. Tra i più comuni troviamo: etichette scambiate, etichette errate. Si definisce errore di etichettatura, dunque, qualsiasi alterazione errata delle etichette di classe all'interno del dataset.
@@ -61,30 +61,42 @@ T = \begin{pmatrix} T_{00} & T_{01} \\ T_{10} & T_{11}
 In un modello, questo tipo di errore produce una degradazione 
 sistematica delle prestazioni dovute all'ottimizzazione su osservazioni con supervisione errata. Questo risultato si riflette anche nel lavoro di Maurino \cite{maurino2025data}: il rumore sulle etichette è l'unico tipo di errore che impatta negativamente tutti i dieci modelli testati senza eccezioni, incluso il modello deep MLP. A sostegno di ciò, come anticipato nell'introduzione, Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} rilevano che i modelli deep tendono a memorizzare il rumore anziché ignorarlo, portando a prestazioni degradate in scenari reali.
 
-\red{da ricontrollare dopo aver finito la tesi}
-
 \subsection{Valori mancanti}
-testo...
+I valori mancanti rappresentano una delle forme più comuni di degrado della qualità nei dataset reali: si verificano quando una o più feature di un'osservazione non sono state registrate, rilevate o sono andate perse durante le fasi di raccolta o pre-processing dei dati.
+
+In letteratura, l'impatto dei valori mancanti dipende fortemente dal meccanismo con cui essi si generano. Si distinguono tre regimi principali: \textit{Missing Completely At Random} (MCAR), dove l'assenza del valore è indipendente dal dato stesso; \textit{Missing At Random} (MAR), dove l'assenza dipende da altre variabili osservate; e \textit{Missing Not At Random} (MNAR), dove l'assenza dipende dal valore mancante stesso, rendendo quest'ultimo il caso più critico per i modelli predittivi.
+
+Nel contesto del Deep Learning, i modelli non gestiscono nativamente i valori \texttt{NaN}: tipicamente si ricorre a strategie di imputazione (media, mediana, imputazione multipla) oppure si eliminano le righe coinvolte~\cite{SUN2023120201}. In ogni caso, la presenza di valori mancanti in proporzioni elevate compromette la distribuzione delle feature iningresso, degradando la capacità discriminante del modello in proporzione alla rilevanza informativa della feature corrotta.
 
 \subsection{Rumore sulle feature}
-testo...
+Il rumore numerico sulle feature, detto anche \textit{feature noise} o \textit{attribute noise}, consiste nella sostituzione dei valori originali di una o più colonne con valori incorretti o perturbati. A differenza del rumore sulle etichette, che altera direttamente il segnale di supervisione, il rumore sulle feature introduce incoerenza nella rappresentazione degli input, degradando la capacità del modello di estrarre pattern rilevanti.
+
+I modelli DL sono teoricamente in grado di sviluppare una certa robustezza al rumore sulle feature grazie alla ridondanza delle rappresentazioni interne apprese negli strati nascosti. Tuttavia, questa robustezza dipende criticamente dalla rilevanza della feature corrotta: se essa è ad alto potere discriminante e non dispone di correlati ridondanti nel dataset, la degradazione delle performance può essere significativa. Zhu e Goldberg~\cite{zhu2004class} mostrano come l'impatto del rumore sulle feature sia generalmente inferiore a quello del rumore sulle etichette, ma non trascurabile in scenari ad alta percentuale di corruzione. Questo risultato trova conferma nei risultati sperimentali presentati nel Capitolo~\ref{chap:MLP} e ~\ref{chap:LSTM}, dove i metodi \textit{missing}, \textit{noisy} e \textit{outliers} producono una degradazione contenuta sull'F1-score, con un impatto più visibile sull'AUC-ROC limitatamente alle feature prive di ridondanze strutturali nel dataset.
 
 \subsection{Outlier}
-testo...
+Gli \textit{outlier} sono osservazioni i cui valori si discostano
+significativamente dalla distribuzione generale del dataset. Possono avere
+origine da errori strumentali, malfunzionamenti dei sensori, o rappresentare
+eventi rari ma reali che non rientrano nel pattern abituale dei dati.
+
+Come anticipato nella Sezione~\ref{section:DifferenzaTraApacheEPandas}
+e nella discussione sulle serie temporali, si distingue tra
+\textit{point anomaly}, un valore anomalo in assoluto rispetto alla
+distribuzione generale, e \textit{contextual anomaly}, un valore normale
+in assoluto ma anomalo nel contesto in cui è inserito. 
+
+PuckTrick genera outlier nell'intervallo $[3\sigma, 5\sigma]$ per valori superiori alla media e $[-5\sigma, -3\sigma]$ per valori inferiori~\cite{agostini2025pucktricklibrarymakingsynthetic}.
+
+L'impatto degli outlier sui modelli DL è meno diretto rispetto al rumore sulle etichette: gli strati intermedi della rete possono attenuare valori estremi. Tuttavia, in assenza di normalizzazione robusta, valori anomali possono alterare significativamente i gradienti durante il training, spingendo il modello verso soluzioni sub-ottimali.
 
 
 \section{Apache Spark per il Machine Learning}
 \label{section:DifferenzaTraApacheEPandas}
-\textbf{Apache Spark} è un framework open-source per l'elaborazione
-distribuita di dati su larga scala, originariamente sviluppato presso
-l'UC Berkeley e oggi mantenuto dalla Apache Software Foundation \cite{sparkApache}. A
-differenza di Pandas, che opera in memoria su una singola macchina,
-Spark distribuisce il carico computazionale su un \textbf{cluster di
-nodi}, ottimizzando così il carico di lavoro. Spark ha diverse caratteristiche, le più rilevanti per questo lavoro sono: \textbf{lavora a livello di colonne}, infatti, rispetto a Pandas, Spark usa una struttura colonnare del dataset che gli permette di ottimizzare le operazioni su grande scala e diminuire notevolmente il peso di un dataset se salvato con il suo formato (.parquet), infatti, il formato parquet è notorio per la sua ottima compressione dei dati. Spark è fortemente integrato su diversi linguaggi di sviluppo come Python, Java, Scala ed R e cosa più importante \textbf{permette scalabilità orizzontale}
+\textbf{Apache Spark} è un framework open-source per l'elaborazione distribuita di dati su larga scala, originariamente sviluppato presso l'UC Berkeley e oggi mantenuto dalla Apache Software Foundation \cite{sparkApache}. 
 
-L'integrazione di Spark in PuckTrick consente alla libreria di superare
-i limiti di memoria e performance imposti da Pandas quando si lavora con
-dataset di grandi dimensioni.
+A differenza di Pandas, che opera in memoria su una singola macchina, Spark distribuisce il carico computazionale su un \textbf{cluster di nodi}, ottimizzando così il carico di lavoro. Spark ha diverse caratteristiche, le più rilevanti per questo lavoro sono: \textbf{lavora a livello di colonne}, infatti, rispetto a Pandas, Spark usa una struttura colonnare del dataset che gli permette di ottimizzare le operazioni su grande scala e diminuire notevolmente il peso di un dataset se salvato con il suo formato (.parquet), infatti, il formato parquet è notorio per la sua ottima compressione dei dati. Spark è fortemente integrato su diversi linguaggi di sviluppo come Python, Java, Scala ed R e cosa più importante \textbf{permette scalabilità orizzontale}
+
+L'integrazione di Spark in PuckTrick consente alla libreria di superare i limiti di memoria e performance imposti da Pandas quando si lavora con dataset di grandi dimensioni.
 
 \subsection{MLlib e TorchDistributor}
 MLlib è la libreria di machine learning nativa di Apache Spark. Offre algoritmi già parallelizzati e ottimizzati per l'esecuzione distribuita, consentendo il training direttamente su DataFrame Spark senza necessità di conversioni. Per questo lavoro il modello rilevante è il \textit{MultilayerPerceptronClassifier} (d'ora in poi MLP), una rete neurale per classificazione disponibile nativamente in MLlib.

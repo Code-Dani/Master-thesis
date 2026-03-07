@@ -42,6 +42,10 @@ Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossVa
 }
 \end{lstlisting}
 
+\paragraph{Nota sull'architettura selezionata.}
+La configurazione ottimale identificata dal cross-validator, \texttt{[13, 64, 2]}, presenta un unico hidden layer e costituisce tecnicamente una \textit{shallow neural
+network}, al confine della definizione classica di Deep Learning. È opportuno sottolineare che questa non è una scelta arbitraria: architetture più profonde come \texttt{[13, 32, 16, 2]} e \texttt{[13, 64, 32, 16, 2]} erano incluse nello spazio di ricerca (Tabella~\ref{tab:iperparametri}), ma sono state scartate dal cross-validator in favore della configurazione più semplice. Questo risultato suggerisce che, su questo dataset, la capacità rappresentativa aggiuntiva di layer ulteriori non produce un beneficio misurabile, e che la complessità del problema non richiede una profondità maggiore. Tale limitazione viene riconosciuta esplicitamente e verrà ripresa nel Capitolo~\ref{chap:conclusion}.
+
 
 \section[Risultati]{Risultati\footnote{L'esecuzione del modello con intervallo di confidenza al 95\% ha impiegato circa 16 ore.}}
 I risultati mostrano un comportamento nettamente diverso in funzione della tipologia di rumore introdotto, in particolare, il rumoresulle etichette produce una degradazione severa e statisticamente significativa su entrambe le metriche, mentre il rumoreapplicato alle feature tramite \textit{missing}, \textit{noisy} e \textit{outliers} determinano un impatto contenuto sull'F1-score weighted, ma più visibile sull'AUC-ROC, in particolare sulla feature \textbf{Oil\_temperature}. 
@@ -65,7 +69,7 @@ Tuttavia, questa stabilità non deve essere interpretata come robustezza del mod
 
 L'unica eccezione a questo pattern è il rumore di tipo \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo, come visibile nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore}. A differenza degli altri tipi di corruzione, il rumore sulle etichette altera direttamente il segnale di supervisione durante il training: il modello non riceve più informazioni corrette sulla classe target, indipendentemente dalla qualità delle feature in ingresso~\cite{zhang2017understandingdeeplearningrequires}. Questo porta a una degradazione che non può essere mascherata dalla distribuzione sbilanciata delle classi, producendo un crollo del F1-score da $0.9750 \pm 0.0007$ a $0.6166 \pm 0.0741$ al 50\% di rumore(Tabella~\ref{tab:mlp_labels}).
 
-\section{AUC-ROC:}
+\section{AUC-ROC}
 L'analisi dell'AUC-ROC per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} rivela un comportamento asimmetrico tra le tre feature testate: \textbf{Oil\_temperature} degrada sistematicamente, mentre \textbf{DV\_Pressure} e \textbf{TP3} mostrano una resistenza marcata. Le cause sono riconducibili a proprietà strutturali del dataset menzionate nell'analisi esplorativa (Capitolo~\ref{chap:DatasetAnalysis}).
 
 Ci sono diverse possibili cause per la discrepanza tra le feature, in particolare possiamo notare dalle immagini~\ref{fig:AUC-scoreRumore} che per i metodi \textit{missing}, \textit{outliers} e \textit{noisy} la metrica che degrada maggiormente è \textbf{Oil\_temperature}. Il motivo per il quale le performance non degradano per le altre due feature come invece fa per \textbf{Oil\_temperature} è probabilmente dovuto a proprietà intrinseche del dataset che non sono state prese in considerazione durante l'operazione di analisi del dataset.

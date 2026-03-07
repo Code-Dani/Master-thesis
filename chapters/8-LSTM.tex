@@ -4,27 +4,44 @@
 
 \chapter{Long Short-Term Memory - LSTM}
 \label{chap:LSTM}
+
 \section{Tuning iperparametri su dato pulito}
-La colonna timestamp è stata usata per ordinare il dataset in base all'informazione temporale, ma successivamente è stata droppata, questo però non comporta una perdita di informazione in quanto rimane intrinseca nell'ordine delle righe.
+La colonna timestamp è stata usata per ordinare il dataset in base all'informazione temporale, ma successivamente è stata droppata; questo non comporta una perdita di informazione in quanto rimane intrinseca nell'ordine delle righe.
 
-Gli iperparametri utilizzati per il tuning sono riportati in tabella\ref{} di sotto definita:
+Gli iperparametri utilizzati per il tuning sono riportati nella Tabella~\ref{tab:lstm_iperparametri}:
 
-%TABELLA IPERPAREMTRI IN INPUT
-
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|p{5cm}|p{5cm}|}
+        \hline
+        \textbf{Iperparametro} & \textbf{Descrizione} & \textbf{Valori testati} \\
+        \hline
+        \texttt{arch\_fc}
+          & Architettura degli strati fully-connected dopo le celle LSTM & \texttt{[64]}, \texttt{[128]}, \texttt{[256]}, \texttt{[128, 64]} \\ \hline
+        \texttt{lstm\_layers}
+          & Numero di strati LSTM impilati & \texttt{1}, \texttt{2} \\ \hline
+        \texttt{lr}
+          & Learning rate dell'ottimizzatore Adam & \texttt{$10^{-3}$}, \texttt{$10^{-4}$} \\ \hline
+        \texttt{epochs}
+          & Numero di epoche di addestramento & \texttt{5}, \texttt{10} \\ \hline
+    \end{tabular}
+    \caption{Iperparametri testati durante il tuning del modello LSTM.}
+    \label{tab:lstm_iperparametri}
+\end{table}
 
 Per il tuning sono stati effettuati tre passaggi importanti riportati di seguito:
 \begin{enumerate}
-    \item \textbf{Split train/test principale}, effettuato con la stessa logica spiegata in nella sotto sezione\ref{subsection:datasetSplit}
-    \item \textbf{Split tune-train / tune-val}.
+    \item \textbf{Split train/test principale}, effettuato con la stessa logica spiegata nella Sezione~\ref{subsection:datasetSplit};
+    \item \textbf{Split tune-train / tune-val};
     \item \textbf{Ordinamento temporale}.
 \end{enumerate}
 
 \subsection{Risultati tuning iperparametri}
-L'esecuzione del tuning degli iperparemtri è durata circa 6 ore per calcolare 33 combinazioni diverse di iperparametri. 
-I risultati, calcolati con F1-score weighted e AUC-ROC, visionabili in tabella~\ref{tab:lstm_tuning}, sono in linea con quanto visto nel capitolo~\ref{chap:MLP} precedente, infatti possiamo notare che la F1-Score Weighted rimane pressochè invariata a $\pm 0.96$, con solo alcuni casi in cui scende a $\pm 0.94$ (esecuzione \textit{22} e \textit{30}), dunque terremo in considerazione la combinazione di entrambe le metriche e anche il tempo di esecuzione nel trovare un candidato ideale.
+L'esecuzione del tuning degli iperparametri è durata circa 6 ore per calcolare 33 combinazioni diverse di iperparametri.
+I risultati, calcolati con F1-score weighted e AUC-ROC, visibili nella Tabella~\ref{tab:lstm_tuning}, sono in linea con quanto visto nel Capitolo~\ref{chap:MLP} precedente: la F1-Score Weighted rimane pressoché invariata attorno a $\pm 0.96$, con solo alcuni casi in cui scende a $\pm 0.94$ (esecuzioni \textit{22} e \textit{30}). Si è dunque tenuto in considerazione la combinazione di entrambe le metriche e il tempo di esecuzione nel trovare il candidato ideale.
 
-Le tre combinazioni con valore di \textbf{AUC-ROC} più alto sono: combinazione \textbf{6}, \textbf{22} e \textbf{29}, tuttavia la combinazione \textbf{22} presenta un \textit{F1-score Weighted} di \textit{0.9443}, pertanto è stata scartata dalle candidate. Le due combinazioni rimaste presentano F1 molto vicine tra di loro, rispettivamente per la combinazione 6 abbiamo una F1 di \textit{0.9632}, mentre per la combinazione 29, abbiamo una F1 di \textit{0.9624}.
-Il fattore decisivo è dunque il tempo, infatti la combinazione 6 esegue in \textbf{686} secondi, mentre la 29 esegue in \textbf{893}.
+Le tre combinazioni con valore di \textbf{AUC-ROC} più alto sono: combinazione \textbf{6}, \textbf{22} e \textbf{29}. Tuttavia la combinazione \textbf{22} presenta un \textit{F1-score Weighted} di \textit{0.9443}, pertanto è stata scartata. Le due combinazioni rimaste presentano F1 molto simili: rispettivamente $0.9632$ per la combinazione 6 e $0.9624$ per la combinazione 29.
+Il fattore decisivo è quindi il tempo: la combinazione 6 esegue in \textbf{686} secondi, mentre la 29 in \textbf{893}.
 
 \begin{table}[H]
 \centering
@@ -86,34 +103,245 @@ con AUC=0.9933.}
 \label{tab:lstm_tuning}
 \end{table}
 
-Questa scelta è stata anche convalidata visivamente creando due grafici attraverso l'uso di librerie python.
+Questa scelta è stata anche convalidata visivamente tramite due grafici.
 
-L'immagine~\ref{fig:LSTMefficienzaTuning} mostra il rapporto tra la metrica \textbf{AUC-ROC} e la quantità di tempo, in secondi, necessaria per l'esecuzione. Possiamo notare come il valore migliore arrivi dalla combinazione \textbf{22} precedentemente scartata per via di un F1 peggiore rispetto altre combinazioni. Questa combinazione è anche l'unica, tra quelle provate, che ha impiegato più di $5000$ secondi di esecuzione, in prospettiva sono $\approx 83$ minuti, rispetto invece la combinazione \textbf{6} che ce ne mette $\approx 11$.
+La Figura~\ref{fig:LSTMefficienzaTuning} mostra il rapporto tra la metrica \textbf{AUC-ROC} e il tempo di esecuzione in secondi. Si può notare come il valore AUC migliore appartenga alla combinazione \textbf{22}, precedentemente scartata per via dell'F1 insufficiente. Questa combinazione è anche l'unica ad aver impiegato più di 5000 secondi ($\approx 83$ minuti), rispetto ai $\approx 11$ minuti della combinazione \textbf{6}.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/lstm_tuning_efficiency.png}
-    \caption{Confronto tra AUC-ROC e tempo di esecuzione per il tuning iperparametri LSTM}
+    \caption{Confronto tra AUC-ROC e tempo di esecuzione per il tuning iperparametri LSTM.}
     \label{fig:LSTMefficienzaTuning}
 \end{figure}
 
-L'immagine~\ref{fig:LSTMConfrontoTuningMetriche} mostra, invece, un confronto visivo tra le due metriche, che rispecchia quanto detto ad inizio sotto sezione: La combinazione \textbf{22}, pur essendo quella con AUC-ROC migliore, risulta anche quella con F1 peggiore.
+La Figura~\ref{fig:LSTMConfrontoTuningMetriche} mostra invece il confronto visivo tra le due metriche, confermando quanto detto sopra: la combinazione \textbf{22}, pur essendo quella con AUC-ROC migliore, risulta anche quella con F1 peggiore.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/lstm_tuning_metrics.png}
-    \caption{Confronto tra AUC-ROC e F1-Score Weighted per il tuning iperparametri LSTM}
+    \caption{Confronto tra AUC-ROC e F1-Score Weighted per il tuning iperparametri LSTM.}
     \label{fig:LSTMConfrontoTuningMetriche}
 \end{figure}
 
+% -----------------------------------------------------------------------
 \section{Esecuzione del modello}
+\label{section:LSTM}
 
-\subsection{Problemi riscontrati}
-% + anche il fatto che si è deciso separare la fase di sporcaggio da quella di test
+\red{[TODO: su spark cluster continuava a dare problemi di dipendendency ed ad un certo punto ha finito la memoria su disco, quindi impossibilitato dall'installare l'ultima dependency pip necessaria sono passato ad una esecuzione locale. Inoltre su cluster spark ci metteva veramente troppo e siccome di base LSTM non è integrato con spark ho deciso di fare tutto locale. (lstm presenta una libreria torchdistribution che permette di fare operazioni su cluster distribuiti, tuttavia non sono riuscito a farla funzionare)]}
 
+% -----------------------------------------------------------------------
+\section[Risultati]{Risultati\footnote{L'esecuzione del modello con intervallo di confidenza al 95\% ha impiegato circa \red{X} ore.}}
 
-\section{Risultati}
+La baseline del modello LSTM, calcolata su 20 esecuzioni indipendenti senza rumore (Tabella~\ref{tab:lstm_baseline}), è $\text{F1} = 0.9719 \pm 0.0056$ e $\text{AUC} = 0.9743 \pm 0.0055$. Rispetto alla baseline MLP ($\text{AUC} = 0.9591$, Tabella~\ref{tab:mlp_baseline}), l'LSTM parte da un punto di partenza più alto in termini di capacità discriminante: sfruttando l'informazione temporale codificata nelle finestre di 30 secondi, il modello è in grado di rilevare le anomalie di pressione con maggiore sensibilità già sul dato pulito.
 
+Il comportamento sotto rumore replica in parte le tendenze già osservate per MLP nel Capitolo~\ref{chap:MLP}, con alcune differenze strutturali rilevanti. Come per MLP, il rumore \textit{labels} produce la degradazione più severa, mentre \textit{duplicated} non produce alcun effetto misurabile. I metodi \textit{missing}, \textit{noisy} e \textit{outliers} applicati alle feature mostrano invece un comportamento parzialmente diverso rispetto a MLP, in particolare per quanto riguarda le feature \textbf{TP3} e \textbf{Oil\_temperature}, come analizzato nelle sezioni successive.
 
+Tutti i risultati sono riportati nelle Tabelle~\ref{tab:lstm_baseline}, \ref{tab:lstm_duplicated}, \ref{tab:lstm_labels}, \ref{tab:lstm_missing}, \ref{tab:lstm_noisy} e~\ref{tab:lstm_outliers} e nelle Figure~\ref{fig:LSTMf1Degradazione} e~\ref{fig:LSTMAUCDegradazione}.
+
+\subsection{Labels}
+Il rumore \textit{labels} produce, anche sull'LSTM, la degradazione più severa tra tutte le tipologie testate, in linea con quanto documentato da Zhang et al.~\cite{zhang2017understandingdeeplearningrequires}. Tuttavia, il collasso è ancora più pronunciato rispetto a MLP: a 50\% di rumore, l'AUC-ROC crolla da una baseline di $0.9743$ fino a $\mathbf{0.2917 \pm 0.0837}$, un valore inferiore persino a quello di un classificatore casuale ($0.5$), indicando che il modello ha invertito il proprio ordinamento interno delle classi. A titolo comparativo, l'MLP alla stessa percentuale si attesta a $0.5119 \pm 0.1889$ (Tabella~\ref{tab:mlp_labels}).
+
+L'F1-score weighted subisce invece il crollo con un ritardo di una soglia rispetto all'AUC: rimane pressoché stabile fino al 30\% ($0.9867 \pm 0.0024$) per poi collassare a $0.5359 \pm 0.1305$ al 50\%. Questo disallineamento temporale tra le due metriche evidenzia che l'LSTM, sfruttando il contesto temporale delle finestre, riesce a mantenere un minimo di coerenza nell'assegnazione della classe maggioritaria più a lungo di MLP, ma una volta superata la soglia critica degrada in modo più brusco.
+
+\subsection{Duplicated}
+Come per MLP, il modello LSTM risulta completamente resistente all'introduzione di righe duplicate. La F1-score rimane stabile o leggermente superiore alla baseline entro l'intervallo di confidenza, con la massima deviazione di $+0.0105$ a 10\% di rumore. Anche l'AUC-ROC segue lo stesso andamento, con valori compresi nell'intervallo $[0.9578, 0.9828]$, tutti sovrapposti o superiori alla baseline ($0.9743 \pm 0.0055$).
+
+La resistenza ai duplicati è spiegabile dalla natura del metodo: le righe aggiunte non alterano la distribuzione informativa del dataset ma ne aumentano la ridondanza. Per un modello sequenziale come LSTM, che elabora finestre di campioni, l'introduzione di finestre duplicate produce effettivamente un overfit locale su quei pattern, ma la quantità di pattern distinti rimasta è sufficiente a preservare la capacità discriminante globale.
+
+% -----------------------------------------------------------------------
+\section{F1-Score}
+
+Come già osservato per MLP nel Capitolo~\ref{chap:MLP}, l'F1-score weighted risulta una metrica scarsamente sensibile alla corruzione delle feature su questo dataset, a causa dello sbilanciamento delle classi~\cite{buda2018systematic, johnson2019survey}. Il 98\% dei campioni appartiene alla classe \textit{senza guasti} e il contributo ponderato di questa classe domina la metrica aggregata, mascherando degradazioni anche significative sulla classe minoritaria.
+
+Nei metodi \textit{missing}, \textit{noisy} e \textit{outliers}, la F1-score rimane sostanzialmente stabile per tutte e tre le feature testate: la deviazione massima dalla baseline a 50\% di rumore è di $0.0152$ punti, registrata per \textit{missing} su \texttt{TP3} ($0.9567 \pm 0.0004$, Tabella~\ref{tab:lstm_missing}). Gli intervalli di confidenza al 95\% si sovrappongono quasi completamente a quelli della condizione pulita, indicando assenza di degradazione statisticamente significativa sull'F1.
+
+L'unica eccezione è il rumore \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo, come visibile nella Figura~\ref{fig:LSTMf1Degradazione}. Il crollo dell'F1 da $0.9719 \pm 0.0056$ a $0.5359 \pm 0.1305$ al 50\% di rumore (Tabella~\ref{tab:lstm_labels}) è una conseguenza diretta dell'alterazione del segnale di supervisione durante il training, confermando quanto già documentato per MLP e per i modelli deep in generale~\cite{zhang2017understandingdeeplearningrequires}.
+
+% -----------------------------------------------------------------------
+\section{AUC-ROC}
+
+L'analisi dell'AUC-ROC per i metodi \textit{missing}, \textit{noisy} e \textit{outliers} rivela un comportamento parzialmente diverso rispetto a MLP, con differenze rilevanti nelle feature \textbf{TP3} e \textbf{Oil\_temperature}.
+
+\subsection{DV\_pressure}
+Il comportamento di \texttt{DV\_pressure} sull'LSTM è analogo a quanto osservato per MLP: la feature presenta una distribuzione quasi-binaria (98\% dei valori a 0, con 5 durante i guasti), e la sua struttura informativamente netta la rende resistente a tutti i tipi di corruzione. L'AUC-ROC rimane stabile o migliora per \textit{noisy} ($0.9859 \pm 0.0056$ a 50\%) e per \textit{outliers}. Per \textit{missing} si osserva una leggera oscillazione, ma i valori rimangono all'interno degli intervalli di confidenza della baseline.
+
+La spiegazione è la stessa già data per MLP: il metodo \textit{noisy} genera valori uniformi in $[0, 5]$, producendo valori medi attorno a $2.5$, sufficientemente distanti dal valore di guasto ($5$) da non compromettere la separabilità delle classi. La struttura temporale delle finestre LSTM non altera questa proprietà intrinseca della feature.
+
+\subsection{TP3}
+La feature \texttt{TP3} mostra sull'LSTM un comportamento diverso rispetto a MLP. Come illustrato nel Capitolo~\ref{chap:MLP}, l'MLP risultava quasi immune alla corruzione di \texttt{TP3} grazie alla correlazione perfetta con \texttt{Reservoirs}: quando \texttt{TP3} veniva corrotta, il modello si appoggiava automaticamente a \texttt{Reservoirs} come feature sostitutiva.
+
+Sull'LSTM questo meccanismo di fallback risulta meno efficace: il modello elabora finestre temporali dove la struttura sequenziale è parte integrante del segnale, e la sostituzione implicita tra feature correlate è meno immediata. Il risultato è una degradazione misurabile dell'AUC: con \textit{missing} al 50\% l'AUC scende a $0.9328 \pm 0.0281$ (vs $0.9524 \pm 0.0102$ di MLP, Tabella~\ref{tab:mlp_missing}), con intervalli di confidenza che non si sovrappongono alla baseline ($0.9743 \pm 0.0055$).
+
+Tuttavia, la degradazione rimane contenuta rispetto a \texttt{Oil\_temperature}, suggerendo che la correlazione con \texttt{Reservoirs} attenua comunque parzialmente l'impatto, pur senza eliminarlo completamente come accadeva per MLP.
+
+\subsection{Oil\_temperature}
+Il comportamento di \texttt{Oil\_temperature} sull'LSTM è, sorprendentemente, più robusto rispetto a MLP. Mentre su MLP questa feature produceva la degradazione più severa tra le tre (AUC fino a $0.8137 \pm 0.0487$ con \textit{missing} al 50\%, Tabella~\ref{tab:mlp_missing}), sull'LSTM i valori rimangono in un range molto più alto, con il minimo registrato a $0.9212 \pm 0.0333$ (\textit{missing} 10\%) e il valore a 50\% di $0.9574 \pm 0.0121$ per \textit{missing} e $0.9370 \pm 0.0342$ per \textit{noisy}.
+
+La spiegazione più probabile risiede nella capacità dell'LSTM di sfruttare il contesto temporale per compensare la corruzione di singoli valori. \texttt{Oil\_temperature} presenta una dinamica lenta e continua nel tempo (cresce gradualmente durante le fasi di carico, vedi Capitolo~\ref{chap:DatasetAnalysis}): il modello, elaborando finestre di 30 secondi, può ricostruire implicitamente il valore atteso dai campioni adiacenti nella finestra stessa, attenuando l'impatto dei valori corrotti o mancanti. L'MLP, non disponendo di questo contesto temporale, dipende esclusivamente dal valore istantaneo della feature e risulta quindi più vulnerabile.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_f1_degradation.png}
+    \caption{Degradazione del modello LSTM al crescere della percentuale di rumore, metrica F1-score.}
+    \label{fig:LSTMf1Degradazione}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_auc_degradation.png}
+    \caption{Degradazione del modello LSTM al crescere della percentuale di rumore, metrica AUC-ROC.}
+    \label{fig:LSTMAUCDegradazione}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_heatmap_f1.png}
+    \caption{Heatmap della degradazione F1 a 50\% di rumore rispetto alla baseline LSTM. Valori più alti (rosso) indicano maggiore danno.}
+    \label{fig:LSTMHeatmapF1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_heatmap_auc.png}
+    \caption{Heatmap della degradazione AUC-ROC a 50\% di rumore rispetto alla baseline LSTM. Valori più alti (rosso) indicano maggiore danno.}
+    \label{fig:LSTMHeatmapAUC}
+\end{figure}
+
+\newpage
+
+% -----------------------------------------------------------------------
+\section{Tabelle di riferimento per LSTM}
+\textit{\red{aggiornare i risultati quando finisco le 20 run}}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{ccc}
+\toprule
+\textbf{Noise \%} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+0\%  & $0.9719 \pm 0.0056$ & $0.9743 \pm 0.0055$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, baseline del modello calcolata su 20 esecuzioni senza rumore.}
+\label{tab:lstm_baseline}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & Row based & $0.9824 \pm 0.0021$ & $0.9661 \pm 0.0092$ \\
+20\% & Row based & $0.9780 \pm 0.0056$ & $0.9578 \pm 0.0155$ \\
+30\% & Row based & $0.9775 \pm 0.0021$ & $0.9828 \pm 0.0058$ \\
+50\% & Row based & $0.9817 \pm 0.0024$ & $0.9741 \pm 0.0111$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, rumore dal metodo \textit{duplicated}.}
+\label{tab:lstm_duplicated}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & Target & $0.9789 \pm 0.0029$ & $0.6458 \pm 0.1222$ \\
+20\% & Target & $0.9822 \pm 0.0037$ & $0.7317 \pm 0.0854$ \\
+30\% & Target & $0.9867 \pm 0.0024$ & $0.7437 \pm 0.0984$ \\
+50\% & Target & $\mathbf{0.5359 \pm 0.1305}$ & $\mathbf{0.2917 \pm 0.0837}$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, rumore dal metodo \textit{labels}.}
+\label{tab:lstm_labels}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & DV\_pressure     & $0.9642 \pm 0.0037$ & $0.9812 \pm 0.0057$ \\
+20\% & DV\_pressure     & $0.9731 \pm 0.0050$ & $0.9833 \pm 0.0062$ \\
+30\% & DV\_pressure     & $0.9594 \pm 0.0027$ & $0.9639 \pm 0.0160$ \\
+50\% & DV\_pressure     & $0.9719 \pm 0.0055$ & $0.9704 \pm 0.0078$ \\
+\midrule
+10\% & Oil\_temperature & $0.9779 \pm 0.0021$ & $0.9212 \pm 0.0333$ \\
+20\% & Oil\_temperature & $0.9801 \pm 0.0010$ & $0.9735 \pm 0.0120$ \\
+30\% & Oil\_temperature & $0.9712 \pm 0.0070$ & $0.9577 \pm 0.0118$ \\
+50\% & Oil\_temperature & $0.9801 \pm 0.0023$ & $0.9574 \pm 0.0121$ \\
+\midrule
+10\% & TP3             & $0.9737 \pm 0.0053$ & $0.9501 \pm 0.0201$ \\
+20\% & TP3             & $0.9564 \pm 0.0005$ & $0.9541 \pm 0.0118$ \\
+30\% & TP3             & $0.9569 \pm 0.0002$ & $0.9456 \pm 0.0379$ \\
+50\% & TP3             & $0.9567 \pm 0.0004$ & $0.9328 \pm 0.0281$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, rumore dal metodo \textit{missing}.}
+\label{tab:lstm_missing}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & DV\_pressure     & $0.9729 \pm 0.0075$ & $0.9717 \pm 0.0099$ \\
+20\% & DV\_pressure     & $0.9762 \pm 0.0044$ & $0.9791 \pm 0.0112$ \\
+30\% & DV\_pressure     & $0.9820 \pm 0.0043$ & $0.9777 \pm 0.0091$ \\
+50\% & DV\_pressure     & $0.9825 \pm 0.0007$ & $0.9859 \pm 0.0056$ \\
+\midrule
+10\% & Oil\_temperature & $0.9729 \pm 0.0064$ & $0.9408 \pm 0.0176$ \\
+20\% & Oil\_temperature & $0.9690 \pm 0.0056$ & $0.9564 \pm 0.0210$ \\
+30\% & Oil\_temperature & $0.9784 \pm 0.0043$ & $0.9551 \pm 0.0028$ \\
+50\% & Oil\_temperature & $0.9814 \pm 0.0013$ & $0.9370 \pm 0.0342$ \\
+\midrule
+10\% & TP3             & $0.9728 \pm 0.0077$ & $0.9616 \pm 0.0196$ \\
+20\% & TP3             & $0.9797 \pm 0.0008$ & $0.9802 \pm 0.0057$ \\
+30\% & TP3             & $0.9708 \pm 0.0059$ & $0.9708 \pm 0.0077$ \\
+50\% & TP3             & $0.9765 \pm 0.0052$ & $0.9859 \pm 0.0055$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, rumore dal metodo \textit{noisy}.}
+\label{tab:lstm_noisy}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & DV\_pressure     & $0.9768 \pm 0.0038$ & $0.9570 \pm 0.0182$ \\
+20\% & DV\_pressure     & $0.9819 \pm 0.0012$ & $0.9810 \pm 0.0087$ \\
+30\% & DV\_pressure     & $0.9819 \pm 0.0004$ & $0.9801 \pm 0.0086$ \\
+50\% & DV\_pressure     & $0.9705 \pm 0.0045$ & $0.9670 \pm 0.0211$ \\
+\midrule
+10\% & Oil\_temperature & $0.9724 \pm 0.0051$ & $0.9265 \pm 0.0253$ \\
+20\% & Oil\_temperature & $0.9750 \pm 0.0048$ & $0.9855 \pm 0.0038$ \\
+30\% & Oil\_temperature & $0.9671 \pm 0.0043$ & $0.9206 \pm 0.0359$ \\
+50\% & Oil\_temperature & $0.9636 \pm 0.0043$ & $0.9592 \pm 0.0068$ \\
+\midrule
+10\% & TP3             & $0.9808 \pm 0.0050$ & $0.9396 \pm 0.0238$ \\
+20\% & TP3             & $0.9740 \pm 0.0028$ & $0.9727 \pm 0.0050$ \\
+30\% & TP3             & $0.9696 \pm 0.0084$ & $0.9609 \pm 0.0144$ \\
+50\% & TP3             & $0.9612 \pm 0.0038$ & $0.9690 \pm 0.0169$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, rumore dal metodo \textit{outliers}.}
+\label{tab:lstm_outliers}
+\end{table}
+
+\newpage
 
 \end{document}

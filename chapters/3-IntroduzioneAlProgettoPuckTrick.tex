@@ -7,7 +7,7 @@
 
 \section{Introduzione}
 
-Il piano sperimentale descritto nel Capitolo~\ref{chap:EmpyricAnalysis} prevede l'esecuzione di \textbf{1100 esperimenti} sul dataset MetroPT-3, composto da oltre 1,5 milioni di righe. A questa scala, l'utilizzo del backend Pandas di PuckTrick per la fase di iniezione del rumore avrebbe comportato tempi di elaborazione proibitivi: come mostrato nell'analisi delle performance \red{(Sezione~\ref{sec:analisi_performance})}, Pandas su operazioni computazionalmente costose scala in modo sfavorevole all'aumentare del volume dei dati, a differenza di Spark che distribuisce il carico su tutti i nodi del cluster.
+Il piano sperimentale descritto nel Capitolo~\ref{chap:EmpyricAnalysis} prevede l'esecuzione di \textbf{1100 esperimenti} sul dataset MetroPT-3, composto da oltre 1,5 milioni di righe. A questa scala, l'utilizzo del backend Pandas di PuckTrick per la fase di iniezione del rumore avrebbe comportato tempi di elaborazione proibitivi: come mostrato nell'analisi delle performance (Sezione~\ref{sec:analisi_performance}), Pandas su operazioni computazionalmente costose scala in modo sfavorevole all'aumentare del volume dei dati, a differenza di Spark che distribuisce il carico su tutti i nodi del cluster.
 
 Questo capitolo descrive il lavoro di estensione della libreria che ha portato all'introduzione di un backend Apache Spark, e illustra la configurazione dell'infrastruttura distribuita su cui è stato eseguito l'intero piano sperimentale.
 
@@ -152,7 +152,7 @@ In Spark, il metodo \textit{sample(fraction=...)} opera invece su base probabili
     al numero esatto di righe desiderato.
 \end{enumerate}
 
-Questa tecnica introduce un overhead computazionale trascurabile (come vedremo nella sezione\ref{}) ma garantisce che la percentuale di corruzione specificata nella strategia sia rispettata con precisione, indipendentemente dal volume del dataset.
+Questa tecnica introduce un overhead computazionale trascurabile (come vedremo nella sezione\ref{sec:analisi_performance}) ma garantisce che la percentuale di corruzione specificata nella strategia sia rispettata con precisione, indipendentemente dal volume del dataset.
 
 \subsection{Gestione dei valori nulli}
 
@@ -182,6 +182,55 @@ deviazione percentuale minima rispetto al valore atteso quando il backend è
 Spark. Tale compromesso riflette una proprietà intrinseca dei sistemi 
 distribuiti, in cui la precisione assoluta viene bilanciata con la 
 scalabilità.
+
+
+\section{Logica di perturbazione dei metodi}
+\label{sec:logica_perturbazione}
+
+I cinque metodi condividono la stessa struttura di alto livello, selezione delle righe, applicazione della perturbazione e merge con il dataset originale, già documentata nel paper di riferimento \cite{agostini2025pucktricklibrarymakingsynthetic}. Questa sezione si concentra esclusivamente sulla logica di perturbazione applicata a ciascuna riga campionata.
+
+I metodi \texttt{missing} e \texttt{duplicated} non eseguono calcoli sulla singola riga: il primo imposta a \texttt{null} i valori delle feature selezionate (Figura~\ref{fig:flow_missing}), il secondo ri-appende al dataset le righe campionate tramite \texttt{union} (Figura~\ref{fig:flow_duplicated}). I tre metodi rimanenti applicano invece una logica di perturbazione dipendente dal tipo della colonna, descritta nelle Figure~\ref{fig:flow_labels},~\ref{fig:flow_noisy} e~\ref{fig:flow_outliers}.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/pucktrick/missing.png}
+        \caption{Logica di perturbazione del metodo \texttt{missing}.}
+        \label{fig:flow_missing}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/pucktrick/duplicated.png}
+        \caption{Logica di perturbazione del metodo \texttt{duplicated}.}
+        \label{fig:flow_duplicated}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{images/pucktrick/labels.png}
+    \caption{Logica di perturbazione del metodo \texttt{labels}.}
+    \label{fig:flow_labels}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/pucktrick/noise.png}
+    \caption{Logica di perturbazione del metodo \texttt{noisy}.}
+    \label{fig:flow_noisy}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/pucktrick/outliers.png}
+    \caption{Logica di perturbazione del metodo \texttt{outliers}.}
+    \label{fig:flow_outliers}
+\end{figure}
+
+
+
 
 \section{Infrastruttura distribuita}
 \label{sec:infrastruttura}

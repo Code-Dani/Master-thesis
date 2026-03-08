@@ -115,7 +115,7 @@ Prima di costruire qualsiasi modello è fondamentale capire com'è fatto il data
 \subsection{Schema}
 Come visibile nella tabella~\ref{tab:schema-metrodt}, la metà delle colonne è di tipo \textit{double}, mentre l'altra nonostante anch'essa viene valutata come double in realtà è categorica, quindi assume 0 o 1 come valori. L'unica eccezione è il \textbf{timestamp} che è di tipo \textit{timestamp}. E' stato, inoltre, verificata la mancanza di valori null.
 
-\textit{TP2, TP3, H1, DV\_Pressure, Reservoirs, Motor\_current, Oil\_temperature} sono colonne analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius), pertanto si è dovuto normalizzarle a valori contenuti in $[0,1]$. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
+\textit{TP2, TP3, H1, DV\_pressure, Reservoirs, Motor\_current, Oil\_temperature} sono colonne analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius), pertanto si è dovuto normalizzarle a valori contenuti in $[0,1]$. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
 
 
 \subsection{Matrice di correlazione}

@@ -1,0 +1,5 @@
+{"noise_type": "duplicated", "feature": "target1", "percentage": 0.1, "seed": 0, "f1": 0.964377916506599, "auc": 0.9583279823352016, "duration_s": 133.16, "timestamp": "2026-03-08T15:03:48.216223"}
+{"noise_type": "duplicated", "feature": "target1", "percentage": 0.1, "seed": 1, "f1": 0.9784978918952458, "auc": 0.9740997756896165, "duration_s": 128.38, "timestamp": "2026-03-08T15:05:56.596010"}
+{"noise_type": "duplicated", "feature": "target1", "percentage": 0.1, "seed": 2, "f1": 0.9800298059790808, "auc": 0.9592437914919036, "duration_s": 128.11, "timestamp": "2026-03-08T15:08:04.705671"}
+{"noise_type": "duplicated", "feature": "target1", "percentage": 0.1, "seed": 3, "f1": 0.956703485490544, "auc": 0.9507645528522232, "duration_s": 129.39, "timestamp": "2026-03-08T15:10:14.096462"}
+{"noise_type": "duplicated", "feature": "target1", "percentage": 0.1, "seed": 4, "f1": 0.9571361880178557, "auc": 0.9520032296287195, "duration_s": 134.45, "timestamp": "2026-03-08T15:12:28.546723"}

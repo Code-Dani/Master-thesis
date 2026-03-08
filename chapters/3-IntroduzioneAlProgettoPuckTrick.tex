@@ -305,7 +305,8 @@ La scelta di allocare 4 core e 15 GB per worker riflette un principio di allocaz
 \subsection{Apertura delle porte di rete}
 
 
-Il funzionamento del cluster richiede l'apertura di due porte sul firewall di ciascuna macchina, riportate nella Tabella~\ref{tab:porte_spark}:
+Il funzionamento del cluster richiede l'apertura di due porte sul firewall di ciascuna macchina, riportate nella Tabella~\ref{tab:porte_spark}.
+\textit{Questa operazione è stata effettuata anche dalla dashboard Azure delle macchine in quanto non è bastato aprire le porte sulla macchina stessa}
 
 \begin{listing}[H]
 \begin{minted}[fontsize=\small, frame=single]{bash}
@@ -315,6 +316,8 @@ sudo ufw allow 8080/tcp   # Web UI del Master
 \caption{Apertura delle porte necessarie al funzionamento del cluster Spark.}
 \label{lst:ufw}
 \end{listing}
+
+
 
 \begin{table}[H]
 \centering

@@ -48,7 +48,7 @@ network}, al confine della definizione classica di Deep Learning. È opportuno s
 
 
 \section[Risultati]{Risultati\footnote{L'esecuzione del modello con intervallo di confidenza al 95\% ha impiegato circa 16 ore.}}
-I risultati mostrano un comportamento nettamente diverso in funzione della tipologia di rumore introdotto, in particolare, il rumoresulle etichette produce una degradazione severa e statisticamente significativa su entrambe le metriche, mentre il rumoreapplicato alle feature tramite \textit{missing}, \textit{noisy} e \textit{outliers} determinano un impatto contenuto sull'F1-score weighted, ma più visibile sull'AUC-ROC, in particolare sulla feature \textbf{Oil\_temperature}. 
+I risultati mostrano un comportamento nettamente diverso in funzione della tipologia di rumore introdotto, in particolare, il rumore sulle etichette produce una degradazione severa e statisticamente significativa su entrambe le metriche, mentre il rumoreapplicato alle feature tramite \textit{missing}, \textit{noisy} e \textit{outliers} determinano un impatto contenuto sull'F1-score weighted, ma più visibile sull'AUC-ROC, in particolare sulla feature \textbf{Oil\_temperature}. 
 
 Il rumore di tipo \textit{duplicated} non produce alcun effetto misurabile. 
 Tutti i risultati sono riportati nelle tabelle~\ref{tab:mlp_baseline},\ref{tab:mlp_duplicated}, \ref{tab:mlp_labels}, \ref{tab:mlp_missing}, \ref{tab:mlp_noisy} e~\ref{tab:mlp_outliers}.
@@ -56,7 +56,9 @@ Tutti i risultati sono riportati nelle tabelle~\ref{tab:mlp_baseline},\ref{tab:m
 \subsection{Labels:} I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore \textit{labels} introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti.
 come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, applicato al target del dataset, produce la degradazione più severa tra tutti i tipi di rumore testati. L'F1-score al 50\% di rumore crolla da una baseline $0.9750$  fino ad arrivare a $0.6166$, l'AUC-ROC invece, riflette fin da subito il deterioramento del dataset e già il 10\% del dataset sporcato con il rumore introdotto da label è abbastanza per far crollare la metrica da una baseline di $0.9591$ al valore $0.7897$. E' possibile visionare la baseline nella tabella~\ref{tab:mlp_baseline}.
 
-\subsection{Duplicated:} come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti la F1-score rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline (Tabella~\ref{tab:mlp_baseline}). Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$.
+\subsection{Duplicated:}
+\label{subsec:mlp_duplicated}
+come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti la F1-score rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline (Tabella~\ref{tab:mlp_baseline}). Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$.
 
 
 \section{F1-Score}
@@ -112,16 +114,55 @@ questa feature non dispone di alcuna proprietà strutturale che ne attenui l'imp
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_f1_degradation.png}
-    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice F1-score}
+    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice F1-score. \textit{Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative}}
     \label{fig:F1-scoreRumore}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_auc_degradation.png}
-    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice AUC-ROC}
+    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice AUC-ROC. \textit{Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative}}
     \label{fig:AUC-scoreRumore}
 \end{figure}
+
+\newpage
+
+\section{Esperimenti di approfondimento}
+\label{sec:mlp_approfondimento}
+
+I risultati presentati nelle sezioni precedenti hanno suggerito due ipotesi specifiche, investigate con esperimenti mirati successivi.
+
+\subsection{Verifica della ridondanza strutturale: TP3 e Reservoir}
+\label{subsec:tp3_reservoir}
+
+L'analisi dell'AUC-ROC ha evidenziato che \textbf{TP3} risulta resistente alla corruzione nonostante sia una feature analogica, a differenza di \textbf{Oil\_temperature}. L'ipotesi formulata è che il modello, quando \texttt{TP3} viene corrotta, sfrutti \texttt{Reservoir} come segnale sostitutivo, data la correlazione perfetta ($r = 1.0$) tra le due feature documentata nel Capitolo~\ref{chap:DatasetAnalysis}. Per verificare questa ipotesi è stato condotto un esperimento aggiuntivo introducendo il rumore simultaneamente su entrambe le feature, privando così il modello di entrambe le sorgenti di informazione ridondante.
+
+I risultati, visionabili nelle Figure~\ref{fig:F1-TP3Reservoir} e~\ref{fig:AUC-TP3Reservoir}, mostrano un decremento dei valori F1 minoritario su \textit{missing} e \textit{noisy}. Il comportamento più particolare lo ha \textit{outliers}, dove si verifica un peggioramento fino al 30\% di rumore e successivamente un miglioramento, questo comportamento porta a pensare che il modello abbia deciso di dare importanza ad altre feature del dataset piuttosto che continuare con TP3 e Reservoir.
+
+Sull'AUC-ROC si osserva un peggioramento più marcato per tutti i metodi. È notevole il comportamento di \textit{noisy} e \textit{outliers}: entrambi registrano un miglioramento della metrica al 10\% di rumore, coerente con il fenomeno di regolarizzazione implicita formalizzato da Bishop~\cite{bishop1995noise}, per cui una perturbazione contenuta sugli input può ridurre l'overfitting. I due metodi divergono però nell'evoluzione successiva: \textit{noisy} degrada monotonicamente dopo il picco iniziale, mentre \textit{outliers} presenta un andamento oscillante, con un peggioramento fino al 30\% seguito da un parziale recupero al 50\%, probabilmente riconducibile al riorientamento del modello verso altre feature del dataset discusso in precedenza.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]
+        {images/Results/new_mlp_f1_degradation.png}
+    \caption{Degradazione F1-score negli esperimenti di approfondimento: TP3+Reservoir combinati e Duplicated sulla classe minoritaria. Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative.}
+    \label{fig:F1-TP3Reservoir}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]
+        {images/Results/new_mlp_auc_degradation.png}
+    \caption{Degradazione AUC-ROC negli esperimenti di approfondimento: TP3+Reservoir combinati e Duplicated sulla classe minoritaria. Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative.}
+    \label{fig:AUC-TP3Reservoir}
+\end{figure}
+
+\subsection{Duplicated sulla classe minoritaria}
+\label{subsec:duplicated_minority}
+
+I risultati del rumore \textit{duplicated} applicato sull'intero dataset non hanno prodotto alcun effetto misurabile, come discusso nella Sezione~\ref{subsec:mlp_duplicated}. Tuttavia, la duplicazione casuale su un dataset fortemente sbilanciato (98\% classe maggioritaria) agisce di fatto come un oversampling casuale il cui impatto è strutturalmente trascurabile sulla classe dominante~\cite{buda2018systematic}. È stato quindi condotto un esperimento mirato introducendo i duplicati \textbf{esclusivamente sulle osservazioni con target = 1} (classe di guasto), simulando un oversampling intenzionale della classe minoritaria.
+
+I risultati, visibili nelle Figure~\ref{fig:F1-TP3Reservoir} e~\ref{fig:AUC-TP3Reservoir}, mostrano che per la metrica F1 l'introduzione comporta una variazione minimale tra il 20\% e il 30\%, con le performance che si ristabilizzano al valore originale intorno al 50\%. Con AUC-ROC invece vediamo un altra storia, dove il modello perde capacità decisionale e presenta un andamento prevalentemente di degrado.
 
 \newpage
 
@@ -252,6 +293,56 @@ questa feature non dispone di alcuna proprietà strutturale che ne attenui l'imp
 \caption{Tabella risultati MLP, rumore dal metodo \textit{outliers}.}
 \label{tab:mlp_outliers}
 \end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & Target (minoritaria) & $0.9755 \pm 0.0023$ & $0.9514 \pm 0.0093$ \\
+20\% & Target (minoritaria) & $0.9773 \pm 0.0028$ & $0.9510 \pm 0.0075$ \\
+30\% & Target (minoritaria) & $0.9739 \pm 0.0029$ & $0.9514 \pm 0.0076$ \\
+50\% & Target (minoritaria) & $0.9751 \pm 0.0028$ & $0.9466 \pm 0.0079$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, rumore \textit{duplicated} applicato 
+esclusivamente alla classe minoritaria (target = 1). 
+La baseline di riferimento è riportata in Tabella~\ref{tab:mlp_baseline}.}
+\label{tab:mlp_duplicated_minority}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Metodo} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & missing  & $0.9671 \pm 0.0036$ & $0.9379 \pm 0.0090$ \\
+20\% & missing  & $0.9681 \pm 0.0035$ & $0.9144 \pm 0.0177$ \\
+30\% & missing  & $0.9662 \pm 0.0037$ & $0.9182 \pm 0.0207$ \\
+50\% & missing  & $0.9669 \pm 0.0036$ & $0.9086 \pm 0.0224$ \\
+\midrule
+10\% & noisy    & $0.9745 \pm 0.0026$ & $0.9803 \pm 0.0045$ \\
+20\% & noisy    & $0.9728 \pm 0.0021$ & $0.9691 \pm 0.0068$ \\
+30\% & noisy    & $0.9704 \pm 0.0021$ & $0.9611 \pm 0.0099$ \\
+50\% & noisy    & $0.9684 \pm 0.0015$ & $0.9510 \pm 0.0144$ \\
+\midrule
+10\% & outliers & $0.9730 \pm 0.0019$ & $0.9651 \pm 0.0097$ \\
+20\% & outliers & $0.9700 \pm 0.0036$ & $0.9464 \pm 0.0136$ \\
+30\% & outliers & $0.9698 \pm 0.0030$ & $0.9229 \pm 0.0234$ \\
+50\% & outliers & $0.9725 \pm 0.0023$ & $0.9424 \pm 0.0153$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati MLP, esperimento con rumore applicato 
+simultaneamente su \texttt{TP3} e \texttt{Reservoir}. 
+La baseline di riferimento è riportata in Tabella~\ref{tab:mlp_baseline}.}
+\label{tab:mlp_tp3_reservoir}
+\end{table}
+
+
 % -- FINE TABELLE --
 
 

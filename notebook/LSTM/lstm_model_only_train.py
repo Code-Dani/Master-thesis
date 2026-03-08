@@ -15,7 +15,7 @@ Esecuzione:
 # 🗺️ PATH — MODIFICA QUI
 # =============================================================================
 NOISY_DIR    = r"D:\Users\satri\Pictures\github\Deep-Learning-Robustness-Study\notebook\Dataset\NEW\noisy"
-RESULTS_PATH = r"D:\Users\satri\Pictures\github\Deep-Learning-Robustness-Study\notebook\LSTM\lstm_results_v2.jsonl"
+RESULTS_PATH = r"D:\Users\satri\Pictures\github\Deep-Learning-Robustness-Study\notebook\LSTM\lstm_results_final.jsonl"
 
 
 # =============================================================================

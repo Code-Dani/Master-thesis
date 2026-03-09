@@ -1,0 +1,18 @@
+Noise Type,Feature,Noise %,F1 mean ± CI 95%,AUC mean ± CI 95%
+Baseline,All features,0%,0.9739 ± 0.0050,0.9638 ± 0.0101
+Duplicated (target=1),Target (fault=1),10%,0.9749 ± 0.0038,0.9539 ± 0.0166
+Duplicated (target=1),Target (fault=1),20%,0.9722 ± 0.0045,0.9421 ± 0.0157
+Duplicated (target=1),Target (fault=1),30%,0.9711 ± 0.0045,0.9166 ± 0.0391
+Duplicated (target=1),Target (fault=1),50%,0.9716 ± 0.0054,0.9196 ± 0.0354
+Missing,TP3 + Reservoirs,10%,0.9546 ± 0.0026,0.9289 ± 0.0191
+Missing,TP3 + Reservoirs,20%,0.9531 ± 0.0047,0.9138 ± 0.0256
+Missing,TP3 + Reservoirs,30%,0.9497 ± 0.0085,0.8767 ± 0.0392
+Missing,TP3 + Reservoirs,50%,0.9521 ± 0.0053,0.8592 ± 0.0590
+Noisy,TP3 + Reservoirs,10%,0.9800 ± 0.0039,0.9693 ± 0.0180
+Noisy,TP3 + Reservoirs,20%,0.9825 ± 0.0017,0.9903 ± 0.0049
+Noisy,TP3 + Reservoirs,30%,0.9729 ± 0.0049,0.9906 ± 0.0045
+Noisy,TP3 + Reservoirs,50%,0.8914 ± 0.0384,0.7629 ± 0.0509
+Outliers,TP3 + Reservoirs,10%,0.9550 ± 0.0026,0.8864 ± 0.0325
+Outliers,TP3 + Reservoirs,20%,0.9573 ± 0.0055,0.8973 ± 0.0168
+Outliers,TP3 + Reservoirs,30%,0.9566 ± 0.0054,0.8810 ± 0.0377
+Outliers,TP3 + Reservoirs,50%,0.9601 ± 0.0042,0.9309 ± 0.0102

@@ -72,7 +72,184 @@ La formula per l'intervallo di confidenza al 95\% è quindi:
 \end{equation}
 dove $n = 20$, $n - 1 = 19$ sono i gradi di libertà e $t_{0.025,\,19} = 2.093$ è il valore critico ricavato dalla tavola~\cite{student_table} $t$ di Student al livello di significatività del 5\%. Il termine $\frac{s}{\sqrt{n}}$ prende il nome di \textit{errore standard} e misura l'incertezza sulla stima della media: al crescere del numero di run, l'errore standard si riduce e l'intervallo si restringe.
 
+%analisi dt dopo la corruzione
+
+\section{Analisi del dataset dopo la corruzione}
+\label{sec:dataset_corrotto}
+
+Prima di analizzare le prestazioni dei modelli, è utile verificare che la corruzione introdotta da PuckTrick produca effetti coerenti con le aspettative. Questa sezione mostra le distribuzioni dei dataset con rumore introdotto utilizzati negli esperimenti, confermando che ciascun tipo di rumore agisce secondo la sua specifica logica di perturbazione. Il funzionamento dei metodi per l'introduzione del rumore di PuckTrick è spiegato nel Capitolo~\ref{chap:DesignAndImplementation}.
 
 
+\begin{quote}
+\textit{Nota metodologica.}
+I 44 dataset corrotti analizzati in questa sezione sono stati generati sul cluster
+\textbf{Apache Spark} tramite il backend Spark di PuckTrick, e salvati in formato
+Parquet per l'addestramento del modello LSTM (Capitolo~\ref{chap:LSTM}).
+Il modello MLP (Capitolo~\ref{chap:MLP}) ha applicato la medesima logica di corruzione a runtime tramite Spark MLlib.
+Dato l'elevato numero di campioni del train set (856.832 righe), le distribuzioni risultanti sono statisticamente equivalenti tra le due modalità di generazione, infatti, per la legge dei grandi numeri, l'introduzione \textit{stocastica} di rumore converge alle stesse proporzioni attese, indipendentemente dall'implementazione.
+\end{quote}
 
+\subsection{Tempo di generazione}
+\label{subsec:tempo_generazione}
+
+La generazione dei 44 dataset corrotti sul cluster Apache Spark ha richiesto complessivamente \textbf{119.1\,s $\approx$ 2 minuti}, sfruttando la parallelizzazione distribuita di PuckTrick tramite il suo backend Spark. Come mostrato in Figura~\ref{fig:generation_times}, i rumori che agiscono sulle feature continue (\texttt{outliers}: 36.9\,s, \texttt{missing}: 32.4\,s, \texttt{noisy}: 27.6\,s) richiedono più tempo rispetto a quelli che operano sulle etichette o duplicano righe (\texttt{labels}: 12.6\,s, \texttt{duplicated}: 9.6\,s), poiché implicano operazioni vettoriali distribuite sulle colonne scalate. Ciascun tipo di rumore è stato applicato a 12 combinazioni tranne \texttt{duplicated} e \texttt{labels}, applicati all'intero dataset, per un totale di 44 dataset.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/Results/noisy_dt_analysis/generation_times.png}
+    \caption{Tempo totale di generazione dei dataset con rumore per tipo di rumore.
+             Tra parentesi il numero di dataset generati per ciascun tipo ($n$).}
+    \label{fig:generation_times}
+\end{figure}
+
+\subsection{Effetto sul target: rumore \textit{labels}}
+\label{subsec:corruzione_labels}
+
+Il rumore \texttt{labels} inverte casualmente una percentuale delle etichette del target, trasformando campioni non-guasto (classe 0) in guasto (classe 1) e viceversa. Come mostrato in Figura~\ref{fig:labels_distribution}, l'effetto sulla distribuzione del target è progressivo e marcato: partendo da un forte squilibrio (98.7\% classe~0, 1.3\% classe~1 nel baseline), al 50\% di corruzione le due classi si equivalgono esattamente (50\%--50\%). Questo tipo di perturbazione è particolarmente insidioso per i modelli di deep learning, i quali tendono a memorizzare le etichette corrotte invece di generalizzare~\cite{zhang2017understandingdeeplearningrequires}: un modello addestrato su un dataset con il 50\% di etichette invertite non dispone di alcun segnale discriminativo affidabile, e ci si aspetta quindi un forte degrado delle metriche di classificazione.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/Results/noisy_dt_analysis/labels_target_distribution.png}
+    \caption{Distribuzione della classe target al variare della percentuale di corruzione \texttt{labels}. Al 50\% di corruzione le due classi sono perfettamente bilanciate.}
+    \label{fig:labels_distribution}
+\end{figure}
+
+
+\newpage
+
+\subsection{Effetto sulle feature: \textit{missing}, \textit{noisy}, \textit{outliers}}
+\label{subsec:corruzione_feature}
+
+\paragraph{Missing.}
+Il rumore \texttt{missing} sostituisce una percentuale casuale dei valori di una
+feature con \texttt{NaN}. Come illustrato in Figura~\ref{fig:missing_nan_pie}, la
+proporzione di valori mancanti è identica per tutte e tre le feature
+(\texttt{DV\_pressure}, \texttt{Oil\_temperature}, \texttt{TP3}) a parità di
+percentuale: al 10\% sono introdotti 85.683 NaN, al 50\% raggiungono i 428.416,
+corrispondenti esattamente alla metà dei 856.832 campioni. Questo
+comportamento è coerente con un campionamento uniforme MCAR (\textit{Missing
+Completely At Random})~\cite{SUN2023120201}, in cui ogni riga ha la stessa
+probabilità di essere selezionata indipendentemente dal valore della feature o
+dallo stato del sistema.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/Results/noisy_dt_analysis/missing_nan_pie_all.png}
+    \caption{Proporzione di valori NaN introdotti dal rumore \texttt{missing}
+             per ciascuna feature (righe) e percentuale di corruzione (colonne).
+             Le proporzioni sono identiche tra le feature, confermando un
+             campionamento MCAR.}
+    \label{fig:missing_nan_pie}
+\end{figure}
+
+\paragraph{Noisy.}
+Il rumore \texttt{noisy} aggiunge perturbazioni gaussiane ai valori della feature.
+Come mostrato nelle Figure~\ref{fig:dist_dv}, \ref{fig:dist_oil} e \ref{fig:dist_tp3},
+l'effetto varia significativamente tra le feature. Per \texttt{DV\_pressure}, la
+distribuzione originale è fortemente concentrata attorno allo zero (bassa variabilità
+della pressione in condizioni operative normali): il rumore gaussiano appiattisce
+leggermente la distribuzione senza spostarla, ma introduce una coda di valori positivi
+che non esistevano nel segnale pulito. Per \texttt{Oil\_temperature}, la distribuzione
+gaussiana preesistente assorbe il rumore in modo più graduale, producendo una curva
+più larga ma qualitativamente simile. Per \texttt{TP3}, la forte asimmetria della
+distribuzione originale (addensata verso valori positivi) viene parzialmente
+erosa dalla componente gaussiana, che introduce una coda sinistra non presente nel
+segnale pulito.
+
+\paragraph{Outliers.}
+Il rumore \texttt{outliers} sostituisce una percentuale dei valori con osservazioni
+anomale, tipicamente collocate a distanze estreme dalla moda della distribuzione. Per
+tutte e tre le feature, l'effetto è visibile come picchi isolati nei bordi
+dell'istogramma al 50\%: in \texttt{DV\_pressure} compaiono valori attorno a $-5$
+e $+4$ (Figura~\ref{fig:dist_dv}), in \texttt{Oil\_temperature} attorno a $\pm4$
+(Figura~\ref{fig:dist_oil}), e in \texttt{TP3} attorno a $\pm3.5$
+(Figura~\ref{fig:dist_tp3}). Questi outlier sintetici si discostano nettamente dalle
+distribuzioni operative normali e possono indurre i modelli a imparare pattern non
+rappresentativi del comportamento reale del sistema.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images/Results/noisy_dt_analysis/feature_dist_DV_pressure_scaled.png}
+    \caption{Distribuzione di \texttt{DV\_pressure\_scaled}: dataset pulito (0\%)
+             vs 50\% di corruzione con \texttt{noisy} (sinistra) e \texttt{outliers}
+             (destra).}
+    \label{fig:dist_dv}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images/Results/noisy_dt_analysis/feature_dist_Oil_temperature_scaled.png}
+    \caption{Distribuzione di \texttt{Oil\_temperature\_scaled}: dataset pulito (0\%)
+             vs 50\% di corruzione con \texttt{noisy} (sinistra) e \texttt{outliers}
+             (destra).}
+    \label{fig:dist_oil}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images/Results/noisy_dt_analysis/feature_dist_TP3_scaled.png}
+    \caption{Distribuzione di \texttt{TP3\_scaled}: dataset pulito (0\%)
+             vs 50\% di corruzione con \texttt{noisy} (sinistra) e \texttt{outliers}
+             (destra). La forte asimmetria della distribuzione originale viene
+             parzialmente erosa dal rumore gaussiano.}
+    \label{fig:dist_tp3}
+\end{figure}
+
+
+\subsection{Effetto sulla dimensione del dataset: rumore \textit{duplicated}}
+\label{subsec:corruzione_duplicated}
+
+Il rumore \texttt{duplicated} è stato applicato in due modalità: \textbf{casuale} (senza
+filtri sul target) e, successivamente, \textbf{condizionato a target\,=\,1} (oversampling della
+classe minoritaria). L'analisi in Figura~\ref{fig:duplicated} mostra chiaramente
+la differenza tra le due strategie.
+Nel caso \textbf{casuale}, la dimensione del train set cresce proporzionalmente
+alla percentuale impostata (da 856.832 righe al baseline fino a 1.285.248 al 50\%),
+ma la distribuzione delle classi rimane pressoché invariata al 98.7\%--1.3\%, poiché
+le righe duplicate sono campionate uniformemente dall'intera popolazione, riflettendo
+le stesse proporzioni originali.
+Nel caso \textbf{condizionato a target\,=\,1}, il campionamento è ristretto alle
+11.017 righe di guasto presenti nel baseline. L'incremento del dataset è quindi
+minimo in termini assoluti (+5.508 righe al 50\%), ma porta la quota di classe~1
+dall'1.29\% all'1.92\%, una variazione piccola ma misurabile, visibile nel pannello
+destro di Figura~\ref{fig:duplicated}. Questo conferma che, data la forte sproporzione
+tra le classi, anche un oversampling del 50\% sulla classe minoritaria
+non riesce ad alterare sensibilmente il bilanciamento globale del dataset.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/Results/noisy_dt_analysis/duplicated_analysis.png}
+    \caption{Analisi del rumore \texttt{duplicated}. A sinistra la crescita del dataset senza applicazione di condizioni sul target, in centro la crescita del dt con condizione target = 1, a destra la crescita del target=1 con condizione target=1 applicata}
+    \label{fig:duplicated}
+\end{figure}
+
+\subsection{Corruzione simultanea di \texttt{TP3} e \texttt{Reservoirs}}
+\label{subsec:tp3_reservoir_empirico}
+
+In aggiunta agli esperimenti principali, si è deciso di applicare del rumore anche a TP3 e Reservoir contemporaneamente, questo permette di osservare se l'introduzione di rumore combinato produce un degrado maggiore rispetto al rumore sulla singola feature.
+
+Per \texttt{missing}, la Figura~\ref{fig:tp3res_missing} mostra che le proporzioni di NaN introdotte nelle due feature sono identiche a quelle osservate per il rumore singolo (Figura~\ref{fig:missing_nan_pie}), confermando il corretto funzionamento di PuckTrick.
+
+Per i rumori \texttt{noisy} e \texttt{outliers}, la Figura~\ref{fig:tp3res_dist} mostra le distribuzioni di \texttt{TP3} e \texttt{Reservoirs} al 50\% di rumore. Le distribuzioni di \texttt{TP3} sono del tutto coerenti con quelle del rumore singolo (Figura~\ref{fig:dist_tp3}), confermando che la corruzione di \texttt{Reservoirs} non altera la distribuzione di \texttt{TP3} e viceversa: PuckTrick applica la perturbazione colonna per colonna in modo indipendente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/Results/noisy_dt_analysis/tp3_reservoir_missing_nan_pie.png}
+    \caption{Proporzione di NaN introdotti dal rumore \texttt{missing} applicato
+             simultaneamente a \texttt{TP3} (riga superiore) e \texttt{Reservoirs}
+             (riga inferiore). Le proporzioni sono identiche tra le due feature,
+             confermando l'indipendenza del campionamento MCAR per colonna.}
+    \label{fig:tp3res_missing}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/Results/noisy_dt_analysis/tp3_reservoir_dist.png}
+    \caption{Distribuzioni di \texttt{TP3} (riga superiore) e \texttt{Reservoirs}
+             (riga inferiore) con corruzione simultanea al 50\% tramite
+             \texttt{noisy} (colonna sinistra) e \texttt{outliers} (colonna destra).
+             Le forme delle distribuzioni sono coerenti con la corruzione singola,
+             confermando l'indipendenza colonnare della perturbazione.}
+    \label{fig:tp3res_dist}
+\end{figure}
 \end{document}

@@ -29,6 +29,11 @@ Gli iperparametri utilizzati per il tuning sono riportati nella Tabella~\ref{tab
     \label{tab:lstm_iperparametri}
 \end{table}
 
+\paragraph{Scelta dell'ottimizzatore.}
+A differenza del modello MLP (Capitolo~\ref{chap:MLP}), che utilizza l'ottimizzatore \textbf{L-BFGS} (\textit{Limited-memory Broyden–Fletcher–Goldfarb–Shanno}) tramite Spark MLlib, il modello LSTM è ottimizzato con \textbf{Adam} (\textit{Adaptive Moment Estimation})~\cite{kingma2017adammethodstochasticoptimization}.
+
+Adam combina il \textit{momentum} del primo momento (media mobile esponenziale dei gradienti) con la normalizzazione del secondo momento (varianza mobile), adattando il learning rate in modo indipendente per ciascun parametro del modello~\cite{kingma2017adammethodstochasticoptimization}. Questa proprietà lo rende particolarmente robusto in presenza di gradienti sparsi o con varianza elevata, condizione frequente nelle celle LSTM che elaborano dipendenze temporali a lungo termine~\cite{ALSELWI2024102068}. Adam è l'ottimizzatore standard per le reti ricorrenti nella letteratura recente ed è il default raccomandato da PyTorch per questo tipo di architettura.
+
 Per il tuning sono stati effettuati tre passaggi importanti riportati di seguito:
 \begin{enumerate}
     \item \textbf{Split train/test principale}, effettuato con la stessa logica spiegata nella Sezione~\ref{subsection:datasetSplit};
@@ -37,11 +42,11 @@ Per il tuning sono stati effettuati tre passaggi importanti riportati di seguito
 \end{enumerate}
 
 \subsection{Risultati tuning iperparametri}
-L'esecuzione del tuning degli iperparametri è durata circa 6 ore per calcolare 33 combinazioni diverse di iperparametri.
+L'esecuzione del tuning degli iperparametri è durata circa 6 ore per calcolare 30 combinazioni diverse di iperparametri.
 I risultati, calcolati con F1-score weighted e AUC-ROC, visibili nella Tabella~\ref{tab:lstm_tuning}, sono in linea con quanto visto nel Capitolo~\ref{chap:MLP} precedente: la F1-Score Weighted rimane pressoché invariata attorno a $\pm 0.96$, con solo alcuni casi in cui scende a $\pm 0.94$ (esecuzioni \textit{22} e \textit{30}). Si è dunque tenuto in considerazione la combinazione di entrambe le metriche e il tempo di esecuzione nel trovare il candidato ideale.
 
 Le tre combinazioni con valore di \textbf{AUC-ROC} più alto sono: combinazione \textbf{6}, \textbf{22} e \textbf{29}. Tuttavia la combinazione \textbf{22} presenta un \textit{F1-score Weighted} di \textit{0.9443}, pertanto è stata scartata. Le due combinazioni rimaste presentano F1 molto simili: rispettivamente $0.9632$ per la combinazione 6 e $0.9624$ per la combinazione 29.
-Il fattore decisivo è quindi il tempo: la combinazione 6 esegue in \textbf{686} secondi, mentre la 29 in \textbf{893}.
+Il fattore decisivo è quindi il tempo: la combinazione 6 esegue in \textbf{687} secondi, mentre la 29 in \textbf{893}.
 
 \begin{table}[H]
 \centering
@@ -131,7 +136,7 @@ A differenza dell'MLP, il training dell'LSTM è stato eseguito \textbf{localment
 
 Dal punto di vista architetturale, l'LSTM non è integrato nativamente in MLlib: l'unica via di integrazione con Spark è tramite \texttt{TorchDistributor}, un wrapper che coordina job PyTorch distribuiti sui worker del cluster. Tuttavia, il deployment di \texttt{TorchDistributor} richiede che ogni worker disponga delle stesse dipendenze Python (PyTorch, CUDA toolkit, librerie ausiliarie), condizione non soddisfatta nell'ambiente di cluster utilizzato, dove i tentativi di installazione hanno esaurito lo spazio su disco prima del completamento.
 
-Dal punto di vista delle prestazioni, anche senza i problemi di configurazione, l'architettura LSTM con finestre temporali di 30 secondi risulta intrinsecamente sequenziale: il calcolo degli stati nascosti non è parallelizzabile lungo la dimensione temporale, rendendo il vantaggio del cluster distribuito marginale rispetto a una singola GPU locale. L'esecuzione su GTX 1070 ha impiegato circa \textbf{105 secondi per run}, consentendo di completare le 1100 run totali in circa \textbf{35 ore} di calcolo cumulativo.\footnote{Il tempo indicato si riferisce alla somma dei tempi di esecuzione sequenziale. È stato tentato un approccio parallelo lanciando due istanze simultanee, ma con soli 16 GB di RAM disponibili il sistema andava frequentemente in paging o terminava con errori di memoria, rendendo le esecuzioni inaffidabili. Si è quindi optato per l'esecuzione sequenziale, che garantisce stabilità a scapito del tempo totale.}
+Dal punto di vista delle prestazioni, anche senza i problemi di configurazione, l'architettura LSTM con finestre temporali di 30 secondi risulta intrinsecamente sequenziale: il calcolo degli stati nascosti non è parallelizzabile lungo la dimensione temporale, rendendo il vantaggio del cluster distribuito marginale rispetto a una singola GPU locale. L'esecuzione su GTX 1070 ha impiegato circa \textbf{113,2 secondi per run}, consentendo di completare le 1100 run totali in circa \textbf{35 ore} di calcolo cumulativo.\footnote{Il tempo indicato si riferisce alla somma dei tempi di esecuzione sequenziale. È stato tentato un approccio parallelo lanciando due istanze simultanee, ma con soli 16 GB di RAM disponibili il sistema andava frequentemente in paging o terminava con errori di memoria, rendendo le esecuzioni inaffidabili. Si è quindi optato per l'esecuzione sequenziale, che garantisce stabilità a scapito del tempo totale.}
 
 % -----------------------------------------------------------------------
 \section{Risultati}
@@ -145,12 +150,12 @@ Tutti i risultati sono riportati nelle Tabelle~\ref{tab:lstm_baseline}, \ref{tab
 \newpage
 
 \subsection{Labels}
-Il rumore \textit{labels} produce, anche sull'LSTM, la degradazione più severa tra tutte le tipologie testate, in linea con quanto documentato da Zhang et al.~\cite{zhang2017understandingdeeplearningrequires}. Tuttavia, il collasso è ancora più pronunciato rispetto a MLP: a 50\% di rumore, l'AUC-ROC crolla da una baseline di $0.9638$ fino a $\mathbf{0.3511 \pm 0.0981}$, un valore inferiore persino a quello di un classificatore casuale ($0.5$), indicando che il modello ha invertito il proprio ordinamento interno delle classi. A titolo comparativo, l'MLP alla stessa percentuale si attesta a $0.5119 \pm 0.1889$ (Tabella~\ref{tab:mlp_labels}).
+Come mostrato nella Sezione~\ref{subsec:corruzione_labels}, al 50\% di corruzione le due classi si equivalgono esattamente, privando anche l'LSTM di qualsiasi segnale discriminativo affidabile. Il rumore \textit{labels} produce, anche sull'LSTM, la degradazione più severa tra tutte le tipologie testate, in linea con quanto documentato da Zhang et al.~\cite{zhang2017understandingdeeplearningrequires}. Tuttavia, il collasso è ancora più pronunciato rispetto a MLP: a 50\% di rumore, l'AUC-ROC crolla da una baseline di $0.9638$ fino a $\mathbf{0.3511 \pm 0.0981}$, un valore inferiore persino a quello di un classificatore casuale ($0.5$), indicando che il modello ha invertito il proprio ordinamento interno delle classi. A titolo comparativo, l'MLP alla stessa percentuale si attesta a $0.5119 \pm 0.1889$ (Tabella~\ref{tab:mlp_labels}).
 
 L'F1-score weighted subisce invece il crollo con un ritardo di una soglia rispetto all'AUC: rimane pressoché stabile fino al 30\% ($0.9798 \pm 0.0086$) per poi collassare a $0.4681 \pm 0.1629$ al 50\%. Questo disallineamento temporale tra le due metriche evidenzia che l'LSTM, sfruttando il contesto temporale delle finestre, riesce a mantenere un minimo di coerenza nell'assegnazione della classe maggioritaria più a lungo di MLP, ma una volta superata la soglia critica degrada in modo più brusco.
 
 \subsection{Duplicated}
-Come per MLP, il modello LSTM risulta completamente resistente all'introduzione di righe duplicate. La F1-score rimane stabile o leggermente superiore alla baseline entro l'intervallo di confidenza, con la massima deviazione di $+0.0060$ a 10\% di rumore. Anche l'AUC-ROC segue lo stesso andamento, con valori compresi nell'intervallo $[0.9486, 0.9735]$, tutti sovrapposti alla baseline ($0.9638 \pm 0.0101$).
+Come analizzato nella Sezione~\ref{subsec:corruzione_duplicated}, la duplicazione casuale non altera la distribuzione delle classi e lo sbilanciamento 98.7\%/1.3\% rimane invariato a qualsiasi percentuale. Come per MLP, il modello LSTM risulta completamente resistente all'introduzione di righe duplicate. La F1-score rimane stabile o leggermente superiore alla baseline entro l'intervallo di confidenza, con la massima deviazione di $+0.0060$ a 10\% di rumore. Anche l'AUC-ROC segue lo stesso andamento, con valori compresi nell'intervallo $[0.9486, 0.9735]$, tutti sovrapposti alla baseline ($0.9638 \pm 0.0101$).
 
 La resistenza ai duplicati è spiegabile dalla natura del metodo: le righe aggiunte non alterano la distribuzione informativa del dataset ma ne aumentano la ridondanza. Per un modello sequenziale come LSTM, che elabora finestre di campioni, l'introduzione di finestre duplicate produce effettivamente un overfit locale su quei pattern, ma la quantità di pattern distinti rimasta è sufficiente a preservare la capacità discriminante globale.
 
@@ -214,6 +219,33 @@ La spiegazione più probabile risiede nella capacità dell'LSTM di sfruttare il 
 \end{figure}
 
 \newpage
+
+
+
+\section{Esperimenti di approfondimento}
+\label{sec:lstm_approfondimento}
+
+
+\subsection{Verifica della ridondanza strutturale: TP3 e Reservoir}
+\label{subsec:lstm_tp3_reservoir}
+
+Le distribuzioni dei dataset corrotti per questo esperimento sono le stesse analizzate per MLP nella Sezione~\ref{subsec:tp3_reservoir_empirico}, confermando l'equivalenza statistica tra i due set di esperimenti.
+
+
+% figure 1 
+
+% figure 2
+
+
+
+\subsection{Duplicated sulla classe minoritaria}
+\label{subsec:lstm_duplicated_minority}
+
+Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con oversampling al 50\% sulla classe minoritaria la quota di guasti passa solo dall'1.29\% all'1.92\%, un incremento troppo contenuto per alterare il bilanciamento globale (rapporto classi circa 78:1).
+
+
+\newpage
+
 
 % -----------------------------------------------------------------------
 \section{Tabelle di riferimento per LSTM}

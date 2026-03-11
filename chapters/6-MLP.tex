@@ -44,7 +44,7 @@ Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossVa
 
 \paragraph{Nota sull'architettura selezionata.}
 La configurazione ottimale identificata dal cross-validator, \texttt{[13, 64, 2]}, presenta un unico hidden layer e costituisce tecnicamente una \textit{shallow neural
-network}, al confine della definizione classica di Deep Learning. È opportuno sottolineare che questa non è una scelta arbitraria: architetture più profonde come \texttt{[13, 32, 16, 2]} e \texttt{[13, 64, 32, 16, 2]} erano incluse nello spazio di ricerca (Tabella~\ref{tab:iperparametri}), ma sono state scartate dal cross-validator in favore della configurazione più semplice. Questo risultato suggerisce che, su questo dataset, la capacità rappresentativa aggiuntiva di layer ulteriori non produce un beneficio misurabile, e che la complessità del problema non richiede una profondità maggiore. Tale limitazione viene riconosciuta esplicitamente e verrà ripresa nel Capitolo~\ref{chap:conclusion}.
+network}, al confine della definizione classica di deep learning. È opportuno sottolineare che questa non è una scelta arbitraria: architetture più profonde come \texttt{[13, 32, 16, 2]} e \texttt{[13, 64, 32, 16, 2]} erano incluse nello spazio di ricerca (Tabella~\ref{tab:iperparametri}), ma sono state scartate dal cross-validator in favore della configurazione più semplice. Questo risultato suggerisce che, su questo dataset, la capacità rappresentativa aggiuntiva di layer ulteriori non produce un beneficio misurabile, e che la complessità del problema non richiede una profondità maggiore. Tale limitazione viene riconosciuta esplicitamente e verrà ripresa nel Capitolo~\ref{chap:conclusion}.
 
 
 %Sezione esecuzione del modello
@@ -145,7 +145,7 @@ questa feature non dispone di alcuna proprietà strutturale che ne attenui l'imp
 \section{Esperimenti di approfondimento}
 \label{sec:mlp_approfondimento}
 
-I risultati presentati nelle sezioni precedenti hanno suggerito due ipotesi specifiche, investigate con esperimenti mirati successivi.
+I risultati presentati nelle sezioni precedenti hanno suggerito due ipotesi specifiche, investigate con gli di sotto riportati.
 
 \subsection{Verifica della ridondanza strutturale: TP3 e Reservoir}
 \label{subsec:tp3_reservoir}
@@ -316,10 +316,10 @@ I risultati, visibili nelle Figure~\ref{fig:F1-TP3Reservoir}, \ref{fig:AUC-TP3Re
 \toprule
 \textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
 \midrule
-10\% & Target (minoritaria) & $0.9755 \pm 0.0023$ & $0.9514 \pm 0.0093$ \\
-20\% & Target (minoritaria) & $0.9773 \pm 0.0028$ & $0.9510 \pm 0.0075$ \\
-30\% & Target (minoritaria) & $0.9739 \pm 0.0029$ & $0.9514 \pm 0.0076$ \\
-50\% & Target (minoritaria) & $0.9751 \pm 0.0028$ & $0.9466 \pm 0.0079$ \\
+10\% & Target (1) & $0.9755 \pm 0.0023$ & $0.9514 \pm 0.0093$ \\
+20\% & Target (1) & $0.9773 \pm 0.0028$ & $0.9510 \pm 0.0075$ \\
+30\% & Target (1) & $0.9739 \pm 0.0029$ & $0.9514 \pm 0.0076$ \\
+50\% & Target (1) & $0.9751 \pm 0.0028$ & $0.9466 \pm 0.0079$ \\
 \bottomrule
 \end{tabular}
 \caption{Tabella risultati MLP, rumore \textit{duplicated} applicato 

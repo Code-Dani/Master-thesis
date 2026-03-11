@@ -204,20 +204,6 @@ La spiegazione più probabile risiede nella capacità dell'LSTM di sfruttare il 
     \label{fig:LSTMAUCDegradazione}
 \end{figure}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/Results/lstm_heatmap_f1.png}
-    \caption{Heatmap della degradazione F1 a 50\% di rumore rispetto alla baseline LSTM. Valori più alti (rosso) indicano maggiore danno.}
-    \label{fig:LSTMHeatmapF1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{images/Results/lstm_heatmap_auc.png}
-    \caption{Heatmap della degradazione AUC-ROC a 50\% di rumore rispetto alla baseline LSTM. Valori più alti (rosso) indicano maggiore danno.}
-    \label{fig:LSTMHeatmapAUC}
-\end{figure}
-
 \newpage
 
 
@@ -225,23 +211,48 @@ La spiegazione più probabile risiede nella capacità dell'LSTM di sfruttare il 
 \section{Esperimenti di approfondimento}
 \label{sec:lstm_approfondimento}
 
-
 \subsection{Verifica della ridondanza strutturale: TP3 e Reservoir}
 \label{subsec:lstm_tp3_reservoir}
 
-Le distribuzioni dei dataset corrotti per questo esperimento sono le stesse analizzate per MLP nella Sezione~\ref{subsec:tp3_reservoir_empirico}, confermando l'equivalenza statistica tra i due set di esperimenti.
+L'esperimento è stato progettato per verificare se la ridondanza strutturale tra \texttt{TP3} e \texttt{Reservoirs}, già osservata per MLP nella Sezione~\ref{subsec:tp3_reservoir}, operi in modo analogo sull'LSTM. Nell'esperimento principale, la corruzione veniva applicata a una sola feature alla volta: in quella condizione, il modello poteva appoggiarsi implicitamente alla feature correlata come segnale sostitutivo. Applicando il rumore \textit{simultaneamente} a entrambe le feature, si elimina questo meccanismo di fallback, isolando la dipendenza del modello dall'informazione condivisa dalle due feature.
 
+I risultati sono riportati nelle Tabelle~\ref{tab:lstm_new_duplicated_minority} e~\ref{tab:lstm_new_tp3_reservoir} e nelle Figure~\ref{fig:LSTMNewF1Degradazione} e~\ref{fig:LSTMNewAUCDegradazione}.
 
-% figure 1 
+\paragraph{Missing.}
+La corruzione congiunta produce una degradazione progressiva e sistematica dell'AUC-ROC, che scende da $0.9638$ (baseline) fino a $0.8592 \pm 0.0590$ al 50\% di rumore. Il confronto con l'esperimento su \texttt{TP3} singola (Tabella~\ref{tab:lstm_missing}), dove l'AUC al 50\% si attestava a $0.9421 \pm 0.0237$, conferma che la degradazione aggiuntiva di $\approx 0.08$ punti è direttamente attribuibile alla rimozione del meccanismo di fallback su \texttt{Reservoirs}: privato di entrambe le sorgenti informative, il modello non riesce a compensare i valori mancanti nemmeno sfruttando il contesto temporale delle finestre. %La stessa tendenza è osservabile anche per MLP (Tabella~\ref{tab:mlp_tp3_reservoir}), dove l'AUC al 50\% con \textit{missing} si attesta a $0.9086 \pm 0.0224$: in quel caso però la degradazione è più contenuta, a conferma che l'LSTM — pur essendo più robusto sulla feature singola grazie al contesto temporale — risulta qui più vulnerabile, poiché il segnale sequenziale che sfruttava come compensazione si basa anch'esso su \texttt{TP3} e \texttt{Reservoirs}.
 
-% figure 2
+\paragraph{Noisy.}
+Il rumore \textit{noisy} produce il risultato più rilevante dell'intero esperimento. L'AUC-ROC \textit{migliora} rispetto alla baseline nelle prime tre soglie: $0.9693 \pm 0.0180$ al 10\%, $0.9903 \pm 0.0049$ al 20\%, $0.9906 \pm 0.0045$ al 30\%, per poi collassare bruscamente a $0.7629 \pm 0.0509$ al 50\%. Anche l'F1-score, rimasta stabile fino al 30\%, subisce un crollo netto a $0.8914 \pm 0.0384$.
 
+Il miglioramento osservato alle basse percentuali è interpretabile come un effetto di \textbf{regolarizzazione implicita}: l'aggiunta di rumore ai valori di input durante il training introduce una perturbazione che contrasta l'overfitting, migliorando la capacità di generalizzazione del modello~\cite{10.1162/neco.1995.7.1.108}. Questo effetto benefico è tuttavia limitato a intensità di rumore moderate; quando la percentuale raggiunge il 50\%, la corruzione diventa sufficientemente severa da distruggere la struttura temporale delle sequenze su cui l'LSTM si basa, e le performance collassano in modo brusco e non recuperabile.% Il confronto con MLP (Tabella~\ref{tab:mlp_tp3_reservoir}), dove il metodo \textit{noisy} produce invece una degradazione monotona e graduale dell'AUC, evidenzia come la sensibilità dell'LSTM alla coerenza temporale del segnale amplifichi sia il beneficio della regolarizzazione a bassa intensità, sia il crollo a intensità elevata.
 
+\paragraph{Outliers.}
+Il comportamento con \textit{outliers} è non monotono: l'AUC scende a $0.8864 \pm 0.0325$ al 10\% per poi oscillare attorno a $0.88$--$0.90$ fino al 30\%, e recuperare a $0.9309 \pm 0.0102$ al 50\%. L'F1-score rimane sostanzialmente stabile per tutte le percentuali, con variazioni inferiori al margine di confidenza. Il recupero dell'AUC al 50\% suggerisce che, ad alta densità di outlier, il modello ridistribuisce implicitamente i pesi su altre feature non corrotte, attenuando l'impatto della corruzione congiunta. Questo comportamento è analogo a quanto osservato per MLP nella stessa condizione (Tabella~\ref{tab:mlp_tp3_reservoir}).
 
 \subsection{Duplicated sulla classe minoritaria}
 \label{subsec:lstm_duplicated_minority}
 
-Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con oversampling al 50\% sulla classe minoritaria la quota di guasti passa solo dall'1.29\% all'1.92\%, un incremento troppo contenuto per alterare il bilanciamento globale (rapporto classi circa 78:1).
+Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con oversampling al 50\% sulla classe minoritaria la quota di guasti passa solo dall'$1.29\%$ all'$1.92\%$, un incremento troppo contenuto per alterare il bilanciamento globale del dataset.
+
+I risultati (Tabella~\ref{tab:lstm_new_duplicated_minority}) mostrano un comportamento diverso rispetto all'esperimento \textit{duplicated} standard (Tabella~\ref{tab:lstm_duplicated}), dove sia F1 che AUC rimanevano stabili entro l'intervallo di confidenza della baseline. Qui invece l'AUC-ROC degrada al crescere della percentuale di rumore: da $0.9638$ (baseline) a $0.9539 \pm 0.0166$ al 10\%, fino a $0.9166 \pm 0.0391$ al 30\%, per poi stabilizzarsi a $0.9196 \pm 0.0354$ al 50\%. L'F1-score rimane invece pressoché invariata, confermando il comportamento già osservato per MLP~\cite{buda2018systematic}.
+La degradazione dell'AUC è spiegabile con il fatto che la duplicazione mirata sulla classe minoritaria (classe guasti) introduce sequenze ripetute di eventi $target = 1$ nelle finestre temporali elaborate dall'LSTM. Queste sequenze duplicate incrementano artificialmente il peso dei pattern di guasto durante il training, senza però migliorare il bilanciamento reale del dataset che rimane quasi invariato. Il risultato è un overfitting selettivo sulla classe minoritaria che degrada il modello, riducendone l'AUC senza impattare l'F1, dominata dalla classe maggioritaria~\cite{johnson2019survey}.
+
+%A differenza dell'MLP (Tabella~\ref{tab:mlp_duplicated_minority}), dove la stessa procedura produceva una degradazione dell'AUC molto più contenuta ($0.9514 \pm 0.0093$ al 10\%, $0.9466 \pm 0.0079$ al 50\%), sull'LSTM la riduzione è più marcata, in particolare al 30\% ($0.9166 \pm 0.0391$). Questo suggerisce che la struttura sequenziale delle finestre amplifichi l'effetto della ridondanza locale: un campione duplicato nell'MLP contribuisce come singolo vettore di feature; nell'LSTM lo stesso campione può comparire in più finestre consecutive, moltiplicando la sua influenza sul gradiente durante il backpropagation through time~\cite{Hochreiter1997}.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_new_f1_degradation.png}
+    \caption{Degradazione dell'F1-score del modello LSTM al crescere della percentuale di rumore, esperimento con feature aggregate \texttt{TP3 + Reservoirs} e \texttt{Target (fault=1)}. 20 run per punto, IC 95\%.}
+    \label{fig:LSTMNewF1Degradazione}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/Results/lstm_new_auc_degradation.png}
+    \caption{Degradazione dell'AUC-ROC del modello LSTM al crescere della percentuale di rumore, esperimento con feature aggregate \texttt{TP3 + Reservoirs} e \texttt{Target (fault=1)}. 20 run per punto, IC 95\%.}
+    \label{fig:LSTMNewAUCDegradazione}
+\end{figure}
 
 
 \newpage
@@ -262,7 +273,7 @@ Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con ove
 \caption{Tabella risultati LSTM, baseline del modello calcolata su 20 esecuzioni senza rumore.}
 \label{tab:lstm_baseline}
 \end{table}
-
+%--------------------------------
 \begin{table}[H]
 \centering\small
 \rowcolors{2}{gray!10}{white}
@@ -279,7 +290,7 @@ Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con ove
 \caption{Tabella risultati LSTM, rumore dal metodo \textit{duplicated}.}
 \label{tab:lstm_duplicated}
 \end{table}
-
+%--------------------------------
 \begin{table}[H]
 \centering\small
 \rowcolors{2}{gray!10}{white}
@@ -296,7 +307,7 @@ Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con ove
 \caption{Tabella risultati LSTM, rumore dal metodo \textit{labels}.}
 \label{tab:lstm_labels}
 \end{table}
-
+%--------------------------------
 \begin{table}[H]
 \centering\small
 \rowcolors{2}{gray!10}{white}
@@ -323,7 +334,7 @@ Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con ove
 \caption{Tabella risultati LSTM, rumore dal metodo \textit{missing}.}
 \label{tab:lstm_missing}
 \end{table}
-
+%--------------------------------
 \begin{table}[H]
 \centering\small
 \rowcolors{2}{gray!10}{white}
@@ -350,7 +361,7 @@ Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con ove
 \caption{Tabella risultati LSTM, rumore dal metodo \textit{noisy}.}
 \label{tab:lstm_noisy}
 \end{table}
-
+%--------------------------------
 \begin{table}[H]
 \centering\small
 \rowcolors{2}{gray!10}{white}
@@ -377,7 +388,55 @@ Come documentato nella Sezione~\ref{subsec:corruzione_duplicated}, anche con ove
 \caption{Tabella risultati LSTM, rumore dal metodo \textit{outliers}.}
 \label{tab:lstm_outliers}
 \end{table}
+%--------------------------------
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Feature} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & Target (1) & $0.9749 \pm 0.0038$ & $0.9539 \pm 0.0166$ \\
+20\% & Target (1) & $0.9722 \pm 0.0045$ & $0.9421 \pm 0.0157$ \\
+30\% & Target (1) & $0.9711 \pm 0.0045$ & $0.9166 \pm 0.0391$ \\
+50\% & Target (1) & $0.9716 \pm 0.0054$ & $0.9196 \pm 0.0354$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, rumore \textit{duplicated} applicato
+esclusivamente alla classe minoritaria (target = 1).
+La baseline di riferimento è riportata in Tabella~\ref{tab:lstm_baseline}.}
+\label{tab:lstm_new_duplicated_minority}
+\end{table}
 
+\begin{table}[H]
+\centering\small
+\rowcolors{2}{gray!10}{white}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Noise \%} & \textbf{Metodo} & \textbf{F1 (media $\pm$ IC 95\%)} & \textbf{AUC (media $\pm$ IC 95\%)} \\
+\midrule
+10\% & missing  & $0.9546 \pm 0.0026$ & $0.9289 \pm 0.0191$ \\
+20\% & missing  & $0.9531 \pm 0.0047$ & $0.9138 \pm 0.0256$ \\
+30\% & missing  & $0.9497 \pm 0.0085$ & $0.8767 \pm 0.0392$ \\
+50\% & missing  & $0.9521 \pm 0.0053$ & $0.8592 \pm 0.0590$ \\
+\midrule
+10\% & noisy    & $0.9800 \pm 0.0039$ & $0.9693 \pm 0.0180$ \\
+20\% & noisy    & $0.9825 \pm 0.0017$ & $0.9903 \pm 0.0049$ \\
+30\% & noisy    & $0.9729 \pm 0.0049$ & $0.9906 \pm 0.0045$ \\
+50\% & noisy    & $0.8914 \pm 0.0384$ & $0.7629 \pm 0.0509$ \\
+\midrule
+10\% & outliers & $0.9550 \pm 0.0026$ & $0.8864 \pm 0.0325$ \\
+20\% & outliers & $0.9573 \pm 0.0055$ & $0.8973 \pm 0.0168$ \\
+30\% & outliers & $0.9566 \pm 0.0054$ & $0.8810 \pm 0.0377$ \\
+50\% & outliers & $0.9601 \pm 0.0042$ & $0.9309 \pm 0.0102$ \\
+\bottomrule
+\end{tabular}
+\caption{Tabella risultati LSTM, esperimento con rumore applicato
+simultaneamente su \texttt{TP3} e \texttt{Reservoirs}.
+La baseline di riferimento è riportata in Tabella~\ref{tab:lstm_baseline}.}
+\label{tab:lstm_new_tp3_reservoir}
+\end{table}
+%--------------------------------
 \newpage
 
 \end{document}

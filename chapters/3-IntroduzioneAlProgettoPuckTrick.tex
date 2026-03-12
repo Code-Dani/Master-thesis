@@ -52,13 +52,13 @@ from pucktrick import PuckTrick, Engine
 dataset = ...
 
 config = PuckTrick.make_remote_cluster_config(
-    master_url="spark://localhost:7077",
+    master_url="spark://example_ip:7077",
     num_executors=4,
     executor_cores=4,
     executor_memory="4g",
     driver_memory="4g",
-    driver_host="localhost",
-    driver_bind_address="localhost"
+    driver_host="example_ip",
+    driver_bind_address="example_ip"
 )
 
 pt = PuckTrick(dataset, engine=Engine.SPARK, remote_cluster=config)
@@ -68,7 +68,7 @@ pt = PuckTrick(dataset, engine=Engine.AUTO, remote_cluster=config)
 \label{lst:pucktrick_custom_session}
 \end{listing}
 
-Per ovvie ragioni questo parametro è del tutto opzionale è può essere tranquillamente omesso.
+Per ragioni di design questo parametro è del tutto opzionale è può essere tranquillamente omesso.
 \newpage
 
 Internamente, ciascuno dei cinque metodi di iniezione del rumore delega l'esecuzione al modulo corrispondente nel backend selezionato. I due moduli condividono la stessa interfaccia contrattuale ma differiscono nell'implementazione: il backend Pandas opera in modo \textit{eager} su strutture dati in memoria, mentre il backend Spark costruisce un piano di esecuzione \textit{lazy} (DAG) ottimizzato dal Catalyst Optimizer e distribuito su tutti i nodi del cluster.
@@ -88,9 +88,9 @@ La conversione di una libreria concepita per operare su strutture dati in-memory
 
 \subsection{Assenza di indici posizionali in Spark}
 
-Una delle differenze più rilevanti tra Pandas e Spark risiede nel nel modo in cui accedono ai dati. Pandas espone un sistema di indicizzazione posizionale che, tramite i costrutti \textit{iloc} e \textit{loc}, consente di selezionare righe e colonne per posizione numerica o per etichetta. Questo paradigma è alla base di numerose operazioni nella versione originale di PuckTrick, in particolare per il campionamento dei sottoinsiemi di righe da corrompere e per le operazioni di merge tra dataset originale e dataset modificato.
+Una delle differenze più rilevanti tra Pandas e Spark risiede nel modo in cui accedono ai dati. Pandas espone un sistema di indicizzazione posizionale che, tramite i costrutti \textit{iloc} e \textit{loc}, consente di selezionare righe e colonne per posizione numerica o per etichetta. Questo paradigma è alla base di numerose operazioni nella versione originale di PuckTrick, in particolare per il campionamento dei sottoinsiemi di righe da corrompere e per le operazioni di merge tra dataset originale e dataset modificato.
 
-Apache Spark, al contrario, opera su collezioni distribuite prive di un ordinamento intrinseco e di un indice posizionale. Tale assenza è una conseguenza diretta dell'architettura distribuita~\cite{zaharia2012resilient}: poiché i dati sono partizionati su nodi differenti del cluster, la nozione stessa di ``riga $i$-esima'' non è definita in modo univoco senza un'operazione di ordinamento globale, che risulterebbe computazionalmente onerosa.
+Apache Spark, al contrario, opera su collezioni distribuite prive di un ordinamento intrinseco e di un indice posizionale. Tale assenza è una conseguenza diretta dell'architettura distribuita: poiché i dati sono partizionati su nodi differenti del cluster, la nozione stessa di ``riga $i$-esima'' non è definita in modo univoco senza un'operazione di ordinamento globale, che risulterebbe computazionalmente onerosa.
 
 La soluzione adottata introduce un identificativo di riga univoco con un ciclo di vita ben definito e trasparente all'utente, articolato in quattro fasi:
 
@@ -235,7 +235,7 @@ I metodi \texttt{missing} e \texttt{duplicated} non eseguono calcoli sulla singo
 \section{Infrastruttura distribuita}
 \label{sec:infrastruttura}
 
-Al fine di validare il backend Spark di PuckTrick in un contesto distribuito reale e misurarne le performance rispetto al backend Pandas, è stato configurato un cluster Apache Spark in modalità \textit{Standalone}, ovvero con il gestore di risorse nativo di Spark, senza dipendenze da sistemi esterni come YARN o Kubernetes --- su un insieme di macchine virtuali messe a disposizione dall'Università. L'infrastruttura è composta da un nodo master e quattro worker. Gli IP \textbf{privati} delle macchine sono riportati in Tabella~\ref{tab:cluster_nodes} e verranno referenziati negli snippet di configurazione delle sezioni successive.
+Al fine di validare il backend Spark di PuckTrick in un contesto distribuito reale e misurarne le performance rispetto al backend Pandas, è stato configurato un cluster Apache Spark in modalità \textit{Standalone}, ovvero con il gestore di risorse nativo di Spark, senza dipendenze da sistemi esterni come YARN o Kubernetes, su un insieme di macchine virtuali messe a disposizione dall'Università. L'infrastruttura è composta da un nodo master e quattro worker. Gli IP \textbf{privati} delle macchine sono riportati in Tabella~\ref{tab:cluster_nodes} e verranno referenziati negli snippet di configurazione delle sezioni successive.
 
 \begin{table}[H]
 \centering
@@ -282,7 +282,7 @@ ssh-copy-id user@10.0.1.7
 
 \subsection{Installazione e configurazione dell'ambiente}
 
-Apache Spark è stato installato su tutti i nodi del cluster scaricando il pacchetto precompilato dal sito ufficiale e decomprimendolo in una directory dedicata; il percorso di installazione è stato poi esposto tramite la variabile d'ambiente \texttt{SPARK\_HOME}, definita nel profilo di sistema di ciascuna macchina. E' stato necessario dichiarare al master l'elenco dei nodi worker tramite il file \textit{\$SPARK\_HOME/conf/workers}, contenente gli indirizzi IP dei quattro worker, uno per riga. Questo file viene letto dagli script di orchestrazione di Spark per determinare su quali macchine avviare i processi worker.
+Apache Spark è stato installato su tutti i nodi del cluster scaricando il pacchetto precompilato dal sito ufficiale e il percorso di installazione è stato poi esposto tramite la variabile d'ambiente \texttt{SPARK\_HOME}, definita nel profilo di sistema di ciascuna macchina. E' stato necessario dichiarare al master l'elenco dei nodi worker tramite il file \textit{\$SPARK\_HOME/conf/workers}, contenente gli indirizzi IP dei quattro worker (Figura~\ref{lst:spark_env}), uno per riga. Questo file viene letto dagli script di orchestrazione di Spark per determinare su quali macchine avviare i processi worker.
 
 Il passo successivo è stata la definizione del file \textit{spark-env.sh}, che specifica le variabili d'ambiente critiche per il funzionamento del cluster:
 
@@ -298,7 +298,7 @@ export SPARK_WORKER_MEMORY=15g
 \label{lst:spark_env}
 \end{listing}
 
-La scelta di allocare 4 core e 15 GB per worker riflette un principio di allocazione aggressiva ma stabile: poiché le macchine erano dedicate esclusivamente a Spark, si è assegnata la quasi totalità delle risorse disponibili, riservando circa 1 GB di RAM al sistema operativo e al demone Spark.
+La scelta di allocare 4 core e 15 GB per worker riflette un principio di allocazione aggressiva ma stabile: poiché le macchine sono state dedicate esclusivamente all'esecuzione di Apache Spark, dunque, si è assegnata la quasi totalità delle risorse disponibili, riservando circa 1 GB di RAM al sistema operativo e al demone Spark.
 
 \paragraph{Criticità nella distribuzione dei file di configurazione.} La procedura standard prevede la copia di \texttt{spark-env.sh} dal master ai worker tramite \texttt{scp}. Nel contesto specifico delle macchine utilizzate, questa operazione falliva sistematicamente con errori di tipo \textit{access denied} quando eseguita con privilegi elevati tramite \texttt{sudo}. La soluzione è risultata essere l'esecuzione del comando senza \texttt{sudo}, operando direttamente con l'utente corrente, previa verifica che la directory di destinazione \texttt{\$SPARK\_HOME/conf/} esistesse su ciascun worker e che l'utente disponesse dei permessi di scrittura su di essa.
 
@@ -382,7 +382,7 @@ Grazie a questa configurazione, il driver scrive i dataset nella directory condi
 \section{Analisi delle performance}
 \label{sec:analisi_performance}
 
-Una volta completata la configurazione del cluster, è stata condottaun'analisi sistematica delle performance del backend Spark rispetto albackend Pandas, con l'obiettivo di quantificare i vantaggi e i limitidell'approccio distribuito in funzione del tipo di operazione e delvolume dei dati.
+Una volta completata la configurazione del cluster, è stata condotta un'analisi sistematica delle performance del backend Spark rispetto al backend Pandas, con l'obiettivo di quantificare i vantaggi e i limiti dell'approccio distribuito in funzione del tipo di operazione e del volume dei dati.
 
 \subsection{Benchmark: Pandas vs Spark}
 \label{subsec:benchmark}
@@ -390,7 +390,7 @@ Una volta completata la configurazione del cluster, è stata condottaun'analisi 
 
 \subsubsection{Protocollo sperimentale}
 
-Il benchmark è stato eseguito su un dataset sintetico contenente\textbf{1.000.000 di righe} con colonne di tipologia eterogenea,descritte in Tabella~\ref{tab:fake_dataset}. La scelta di includere tipidi dato diversi è fondamentale per l'interpretazione dei risultati,poiché il tipo della colonna influenza in modo determinante leperformance dei due backend.
+Il benchmark è stato eseguito su un dataset sintetico contenente \textbf{1.000.000 di righe} con colonne di tipologia eterogenea, descritte in Tabella~\ref{tab:fake_dataset}. La scelta di includere tipi di dato diversi è fondamentale per l'interpretazione dei risultati,poiché il tipo della colonna influenza in modo determinante le performance dei due backend.
 
 \begin{table}[H]
 \centering
@@ -429,7 +429,7 @@ I risultati, visibili in Figura~\ref{fig:Risultatiraggrupatiperbackend}, mostran
 \end{figure}
 
 \paragraph{Metodi a bassa complessità computazionale:}
-Per i metodi \textit{duplicated} e \textit{missing} il backend Pandas risulta costantemente più veloce rispetto a Spark (su un dataset di 1.000.000 righe). Questo risultato, apparentemente controintuitivo su un dataset da un milione di righe, è spiegabile con l'\textbf{overhead strutturale} del framework Spark: per ogni esecuzione vengono sempre sostenuti i costi fissi di compilazione del piano di esecuzione, serializzazione dei dati tra il driver Python e la JVM, gestione delle partizioni e coordinamento distribuito. Tali costi, stimabili in circa $\pm 1.5$ secondi, non vengono ammortizzati da alcun guadagno di parallelizzazione quando l'operazione sottostante è intrinsecamente semplice.
+Per i metodi \textit{duplicated} e \textit{missing} il backend Pandas risulta costantemente più veloce rispetto a Spark. Questo risultato, apparentemente controintuitivo su un dataset da un milione di righe, è spiegabile con l'\textbf{overhead strutturale} del framework Spark: per ogni esecuzione vengono sempre sostenuti i costi fissi di compilazione del piano di esecuzione, serializzazione dei dati tra il driver Python e la JVM, gestione delle partizioni e coordinamento distribuito. Tali costi, stimabili in circa $\pm 3$ secondi, non vengono ammortizzati da alcun guadagno di parallelizzazione quando l'operazione sottostante è intrinsecamente semplice.
 
 È inoltre osservabile come la prima esecuzione di ciascun metodo Spark sulla colonna \texttt{f1} risulti sensibilmente più lenta rispetto alle successive, fenomeno attribuibile al \textit{warm-up} della JVM e alla compilazione JIT (\textit{Just-In-Time}) del bytecode durante la prima invocazione.
 

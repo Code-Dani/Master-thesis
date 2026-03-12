@@ -115,7 +115,7 @@ Prima di costruire qualsiasi modello è fondamentale capire com'è fatto il data
 \subsection{Schema}
 Come visibile nella tabella~\ref{tab:schema-metrodt}, la metà delle colonne è di tipo \textit{double}, mentre l'altra nonostante anch'essa viene valutata come double in realtà è categorica, quindi assume 0 o 1 come valori. L'unica eccezione è il \textbf{timestamp} che è di tipo \textit{timestamp}. E' stato, inoltre, verificata la mancanza di valori null.
 
-\textit{TP2, TP3, H1, DV\_pressure, Reservoirs, Motor\_current, Oil\_temperature} sono colonne analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius), pertanto si è dovuto normalizzarle a valori contenuti in $[0,1]$. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
+\textit{TP2, TP3, H1, DV\_pressure, Reservoirs, Motor\_current, Oil\_temperature} sono colonne analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius); pertanto si è applicata una standardizzazione Z-score tramite StandardScaler di Apache Spark (withMean=True, withStd=True), che riporta ciascuna feature a media 0 e deviazione standard 1, rendendole confrontabili tra loro indipendentemente dall'unità di misura originale. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
 
 
 \subsection{Matrice di correlazione}
@@ -125,7 +125,7 @@ La matrice di correlazione di Pearson, visibile in figura~\ref{fig:matriceCorrel
 Dall'analisi emergono quattro osservazioni rilevanti:
 \textbf{Correlazione perfetta $1$ tra \textit{TP3} e \textit{Reservoirs}:} riflette una proprietà fisica del sistema: per specifica del dataset, la pressione a valle dei serbatoi (\textit{Reservoirs}) è attesa pari alla pressione al pannello pneumatico (\textit{TP3}). In particolare, \textit{Reservoir} è un serbatoio contenente aria compressa che può essere usata on-demand dalla metro per le sue utenze pneumatiche, quindi è atteso che la pressione all'interno del serbatoio sia approssimativamente pari alla pressione in uscita dal pannello pneumatico (\textit{TP3}).\\
 
-\textbf{Cluster del ciclo on/off del compressore:} \textit{TP2}, \textit{H1}, \textit{COMP}, \textit{DV\_eletric} e \textit{MPG} presentano correlazioni reciproche prossime a $\pm 1$, indicando che tutti codificano lo stesso fenomeno — lo stato di accensione/spegnimento ciclico del compressore — da prospettive fisiche diverse.\\
+\textbf{Cluster del ciclo on/off del compressore:} \textit{TP2}, \textit{H1}, \textit{COMP}, \textit{DV\_eletric} e \textit{MPG} presentano correlazioni reciproche prossime a $\pm 1$, indicando che tutti codificano lo stesso fenomeno, ovvero, lo stato di accensione/spegnimento ciclico del compressore, ma da prospettive fisiche diverse.\\
 
 \textbf{\textit{DV\_pressure} come feature più discriminante:} con correlazione positiva di $0.67$ rispetto al target, \textit{DV\_pressure} è la variabile che più si differenzia tra funzionamento normale e stato di guasto, risultato confermato dalla feature importance del Random Forest e non solo, vedi sezione \ref{section:FeatureSelezionate}.\\
 
@@ -153,7 +153,7 @@ che il compressore raggiunge la pressione di esercizio, si spegne, e si riaccend
 
 Analizzando invece una finestra temporale nella quale si è registrato un guasto (Figura~\ref{fig:andTemporaleGuasti}), tutti i parametri mostrano simultaneamente un comportamento anomalo. Il compressore risulta perennemente attivo anziché oscillare: \textit{TP2} si mantiene costantemente elevata senza scendere a zero, e \textit{Motor\_current} rimane stabilmente intorno a 5/6A senza le normali cadute a vuoto. 
 \textit{Oil\_temperature} sale a valori critici attorno ai 72/80°C, ben oltre il range ordinario, segnalando un surriscaldamento prolungato. 
-Tuttavia, il segnale più rilevante è \textit{DV\_pressure}: durante il guasto abbandona cambia il suo valore di riposo (0) e oscilla continuamente attorno a 1/2 bar, indicando che le torri scaricano aria in modo anomalo e persistente. 
+Tuttavia, il segnale più rilevante è \textit{DV\_pressure}, dove durante un guasto cambia il suo valore di riposo (0) e oscilla continuamente attorno a 1/2 bar \cite{MetroDT}, indicando che le torri scaricano aria in modo anomalo e persistente. 
 Questo comportamento, assente nel regime normale e costantemente presente
 durante il guasto, spiega fisicamente perché nella sezione successiva vedremo che \textit{DV\_pressure} raccoglie circa il 33\% della feature importance nel modello Random Forest, risultando il predittore più informativo dell'intero dataset, seguito da \textit{Oil\_temperature} e \textit{TP3}.
 
@@ -169,7 +169,7 @@ durante il guasto, spiega fisicamente perché nella sezione successiva vedremo c
 \section{Selezione delle feature}
 Prima di procedere con il training dei modelli deep learning, è stata condotta un'analisi sistematica per identificare le feature più informative e ridurre la dimensionalità del dataset. Sono stati confrontati tre approcci distinti, tutti implementati tramite le API di Spark MLlib.
 
-In questa fase si è scelto di prediligere l'\textbf{AUC-ROC} come metrica di confronto tra gli approcci, anziché l'F1-score in quanto è una metrica \textit{threshold-independent} rendendola più adatta a confrontare sottoinsiemi di feature diversi in fase di selezione, dove l'obiettivo è valutare il potenziale informativo delle feature e non le performance operative del modello. L'F1-score verrà invece utilizzata in combinazione con la AUC-ROC nella fase sperimentale.
+In questa fase si è scelto di prediligere l'\textbf{AUC-ROC} come metrica di confronto tra gli approcci, anziché l'F1-score in quanto è una metrica \textit{threshold-independent} rendendola più adatta a confrontare sottoinsiemi di feature diversi in fase di selezione, dove l'obiettivo è valutare il potenziale informativo delle feature e non le performance operative del modello. L'F1-score (in particolare la variante weighted) verrà invece utilizzata in combinazione con la AUC-ROC nella fase sperimentale.
 
 \subsection{Approcci confrontati}
 

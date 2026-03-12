@@ -7,10 +7,10 @@
 
 %Il rumore introdotto da Pucktrick non mira a replicare scenari reali specifici, ma a valutare in modo controllato e riproducibile la sensibilità dei modelli a diverse tipologie di corruzione dei dati, seguendo la metodologia adottata in \cite{maurino2025data}.
 
-L'obbiettivo dell'analisi empirica è rispondere in modo empirico e riproducibile alla domanda: \textit{Quali tipologie di rumore risultano più nocive ad un modello deep learning su dataset tabulare?}.
+L'obbiettivo dell'analisi è rispondere in modo empirico e riproducibile alla domanda: \textit{Quali tipologie di rumore risultano più nocive ad un modello deep learning su dataset tabulare?}.
 
 \section{Protocollo sperimentale}
-Questa sezione descrive il protocollo comune a tutti gli esperimenti presentati nel capitolo. Le scelte metodologiche qui descritte si applicano sia a MLP (Sezione~\ref{chap:MLP}) sia a LSTM (Sezione~\ref{section:LSTM}).
+Questa sezione descrive il protocollo comune a tutti gli esperimenti presentati nel capitolo. Le scelte metodologiche qui descritte si applicano sia a MLP (Sezione~\ref{chap:MLP}) sia a LSTM (Sezione~\ref{chap:LSTM}).
 
 \subsection{Struttura degli esperimenti}
 Per ogni modello si è deciso di effettuare esecuzioni su quattro dimensioni:
@@ -24,7 +24,7 @@ Per ogni modello si è deciso di effettuare esecuzioni su quattro dimensioni:
 \end{itemize}
 
 
-Ci sono due particolarità da menzionare: Per via della natura del metodo che introduce duplicati (duplicated), questo non verrà valutato su più feature, ma solo su una siccome per design il metodo ignora le feature passate in input dovendo lavorare su righe intere.
+Ci sono due particolarità da menzionare: Per via della natura del metodo che introduce duplicati (duplicated), questo non verrà valutato su più feature, ma solo su una siccome per design il metodo lavora su righe intere.
 La seconda particolarità è che il metodo per introdurre rumore nelle etichette (label) è stato eseguito solo sul target. Di conseguenza il calcolo delle esecuzioni totali viene effettuato come nella seguente equazione~\ref{eq:total_runs}:
 \begin{equation}
   \underbrace{2 \times 5 \times 20}_{\texttt{duplicated} + \texttt{labels}}
@@ -36,7 +36,7 @@ La seconda particolarità è che il metodo per introdurre rumore nelle etichette
 
 \subsection{Dataset}
 \label{subsection:datasetSplit}
-Il dataset, con le colonne \textit{Pressure\_switch} e \textit{Oil\_level} rimosse, viene adesso suddiviso in train e test set, tuttavia per garantire coerenza tra i due modelli e quindi poter fare un confronto si è dovuto fare uno split temporale di modo da mantenere l'informazione del tempo. Lo split è dato fatto sulla data \textit{2020-06-01 00:00:00}, questo permette di avere due campioni con target a 1 (guasti) sia nel dataset di train, sia in quello di test. Tuttavia questo beneficio arriva con lo svantaggio di lavorare con uno split di $56.6\%$ dataset di train e $43.5\%$ di test.
+Il dataset, con le colonne \textit{Pressure\_switch} e \textit{Oil\_level} rimosse, viene adesso suddiviso in train e test set, tuttavia per garantire coerenza tra i due modelli e quindi poter fare un confronto si è dovuto fare uno split temporale di modo da mantenere l'informazione del tempo. Lo split è stato fatto sulla data \textit{2020-06-01 00:00:00}, questo permette di avere due campioni con target a 1 (guasti) sia nel dataset di train, sia in quello di test. Tuttavia questo beneficio arriva con lo svantaggio di lavorare con uno split di $56.6\%$ dataset di train e $43.5\%$ di test.
 
 \subsection{Metriche di valutazione}
 
@@ -59,8 +59,7 @@ della metrica ottenuti nei 20 run indipendenti ($n$). La media campionaria è:
   \bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i
   \label{eq:mean}
 \end{equation}
-La deviazione standard campionaria, calcolata con denominatore $n-1$ per
-ottenere uno stimatore non distorto della varianza della popolazione, è:
+La deviazione standard campionaria $s$, calcolata con denominatore $n-1$ (correzione di Bessel), fornisce uno stimatore non distorto della deviazione standard della popolazione:
 \begin{equation}
   s = \sqrt{\frac{\sum_{i=1}^{n}(x_i - \bar{x})^2}{n-1}}
   \label{eq:std}

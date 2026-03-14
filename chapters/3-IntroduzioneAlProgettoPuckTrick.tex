@@ -38,7 +38,7 @@ pt = PuckTrick(dataset, engine=Engine.AUTO)
 #of a column called: "_pucktrick_row_id"
 dataset_with_puckID = pt.original
 \end{minted}
-\caption{Selezione esplicita del backend al momento dell'istanziazione di PuckTrick.}
+\caption{Selezione esplicita del backend alla creazione dell'oggetto PuckTrick.}
 \label{lst:pucktrick_backend_init}
 \end{listing}
 
@@ -104,6 +104,11 @@ La soluzione adottata introduce un identificativo di riga univoco con un ciclo d
     \item \textbf{Rimozione}: prima di restituire il dataset corrotto all'utente, la colonna viene eliminata. Il dataset in uscita è pertanto strutturalmente identico a quello in ingresso, con la sola differenza dei valori modificati dall'iniezione del rumore.
 \end{enumerate}
 
+\label{subsection:problemaIDOriginalDF}
+La generazione di \textit{\_pucktrick\_row\_id} avviene nel costruttore solo quando il dataset fornito in input è già un DataFrame Spark; di conseguenza, nel caso in cui l’utente selezioni esplicitamente il backend Spark ma passa un original\_df Pandas, pt.original non può garantire la presenza dell’identificativo interno richiesto dalle operazioni di merge del backend distribuito.
+
+Questa casistica non compromette la correttezza della libreria, poiché l’esecuzione viene successivamente interrotta dai controlli di coerenza alla chiamata dei metodi PuckTrick. Tuttavia, sebbene non comprometta la correttezza funzionale della libreria, rappresenta un limite di usabilità che sarà affrontato in futuri miglioramenti, come discusso nelle conclusioni~\ref{chap:conclusion}.
+
 \begin{listing}[H]
 \begin{minted}[fontsize=\small, frame=single]{python}
 if (self.engine == Engine.SPARK and self.original_df is not None
@@ -130,9 +135,8 @@ Pandas adotta un modello di esecuzione \textit{eager}: ogni istruzione viene ese
 
 Questa differenza ha reso necessaria una ristrutturazione del flusso logico dei moduli di iniezione degli errori. Nel codice Pandas originale, i risultati intermedi vengono spesso ispezionati o utilizzati come input per decisioni condizionali nel corso dell'esecuzione. 
 
-Nella versione Spark è stato invece necessario strutturare il codice in modo da costruire pipeline complete di trasformazioni e materializzarle esclusivamente al momento della restituzione del risultato finale. Questo ha comportato un ripensamento della logica di controllo in diversi moduli, in particolare \textit{noisy}, \textit{outliers} e \textit{labels}, dove la strategia di perturbazione dipende da proprietà del dato (ad esempio, se una colonna è categorica o numerica) che richiedono un'azione per essere determinate.
+Nella versione Spark è stato invece necessario strutturare il codice in modo da costruire pipeline complete di trasformazioni e materializzarle esclusivamente al momento della restituzione del risultato finale. Questo ha comportato un ripensamento della logica di controllo in diversi moduli, in particolare \textit{noise}, \textit{outliers} e \textit{labels}, dove la strategia di perturbazione dipende da proprietà del dato (ad esempio, se una colonna è categorica o numerica) che richiedono un'azione per essere determinate.
 
-\newpage
 
 \subsection{Campionamento di DataFrame distribuiti}
 \label{subsec:campionamento}
@@ -164,7 +168,7 @@ l'assenza di dato, indipendentemente dal tipo.
 
 Questa discrepanza ha richiesto un'attenzione particolare nella conversione 
 del modulo \textit{missing}, dove l'obiettivo è proprio l'iniezione di 
-valori nulli, e del modulo \textit{noisy}, dove la perturbazione di valori 
+valori nulli, e del modulo \textit{noise}, dove la perturbazione di valori 
 numerici deve distinguere correttamente tra celle contenenti dati validi e 
 celle già nulle. La soluzione adottata prevede l'utilizzo sistematico di 
 cast espliciti (\textit{cast("string")}, \textit{cast("double")}) e di 
@@ -189,7 +193,7 @@ scalabilità.
 
 I cinque metodi condividono la stessa struttura di alto livello, selezione delle righe, applicazione della perturbazione e merge con il dataset originale, già documentata nel paper di riferimento \cite{agostini2025pucktricklibrarymakingsynthetic}. Questa sezione si concentra esclusivamente sulla logica di perturbazione applicata a ciascuna riga campionata.
 
-I metodi \texttt{missing} e \texttt{duplicated} non eseguono calcoli sulla singola riga: il primo imposta a \texttt{null} i valori delle feature selezionate (Figura~\ref{fig:flow_missing}), il secondo ri-appende al dataset le righe campionate tramite \texttt{union} (Figura~\ref{fig:flow_duplicated}). I tre metodi rimanenti applicano invece una logica di perturbazione dipendente dal tipo della colonna, descritta nelle Figure~\ref{fig:flow_labels},~\ref{fig:flow_noisy} e~\ref{fig:flow_outliers}.
+I metodi \texttt{missing} e \texttt{duplicated} non eseguono calcoli sulla singola riga: il primo imposta a \texttt{null} i valori delle feature selezionate (Figura~\ref{fig:flow_missing}), il secondo ri-appende al dataset le righe campionate tramite \texttt{union} (Figura~\ref{fig:flow_duplicated}). I tre metodi rimanenti applicano invece una logica di perturbazione dipendente dal tipo della colonna, descritta nelle Figure~\ref{fig:flow_labels},~\ref{fig:flow_noise} e~\ref{fig:flow_outliers}.
 
 \begin{figure}[H]
     \centering
@@ -218,8 +222,8 @@ I metodi \texttt{missing} e \texttt{duplicated} non eseguono calcoli sulla singo
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/pucktrick/noise.png}
-    \caption{Logica di perturbazione del metodo \texttt{noisy}.}
-    \label{fig:flow_noisy}
+    \caption{Logica di perturbazione del metodo \texttt{noise}.}
+    \label{fig:flow_noise}
 \end{figure}
 
 \begin{figure}[H]
@@ -422,25 +426,26 @@ I risultati, visibili in Figura~\ref{fig:Risultatiraggrupatiperbackend}, mostran
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{pucktrick_conversion_results/Images/full-runs.png}
+    \includegraphics[width=1\linewidth]{pucktrick_conversion_results/Images/pucktrick_noise_comparison_new.png}
     \caption{Tempi di esecuzione raggrupati per backend e per metodo 
     su dataset da 1.000.000 di righe.}
     \label{fig:Risultatiraggrupatiperbackend}
 \end{figure}
 
 \paragraph{Metodi a bassa complessità computazionale:}
-Per i metodi \textit{duplicated} e \textit{missing} il backend Pandas risulta costantemente più veloce rispetto a Spark. Questo risultato, apparentemente controintuitivo su un dataset da un milione di righe, è spiegabile con l'\textbf{overhead strutturale} del framework Spark: per ogni esecuzione vengono sempre sostenuti i costi fissi di compilazione del piano di esecuzione, serializzazione dei dati tra il driver Python e la JVM, gestione delle partizioni e coordinamento distribuito. Tali costi, stimabili in circa $\pm 3$ secondi, non vengono ammortizzati da alcun guadagno di parallelizzazione quando l'operazione sottostante è intrinsecamente semplice.
+Per i metodi \textit{duplicated}, \textit{missing} e \textit{labels}, il backend Pandas risulta in generale più veloce di Spark. Tale comportamento è coerente con la natura di queste operazioni: trattandosi di trasformazioni relativamente semplici, i costi fissi di inizializzazione della sessione, pianificazione dei task, serializzazione, coordinamento tra driver ed esecutori e comunicazione nel cluster del framework Spark incidono in modo proporzionalmente maggiore e non vengono compensati da un reale vantaggio di parallelizzazione.
 
-È inoltre osservabile come la prima esecuzione di ciascun metodo Spark sulla colonna \texttt{f1} risulti sensibilmente più lenta rispetto alle successive, fenomeno attribuibile al \textit{warm-up} della JVM e alla compilazione JIT (\textit{Just-In-Time}) del bytecode durante la prima invocazione.
+Nel grafico si osservano, inoltre, picchi più marcati in corrispondenza di \textit{duplicated}, \textit{noise} e \textit{labels} per il backend Spark (Figura~\ref{fig:Risultatiraggrupatiperbackend}). Tali picchi non sono da attribuire esclusivamente alla complessità del metodo, ma soprattutto al fatto che i test sono stati eseguiti in tre run distinte: la prima contenente \textit{duplicated} e \textit{missing}, la seconda \textit{noise} e \textit{outlier}, la terza \textit{labels}. Di conseguenza, l'overhead di avvio della sessione Spark tende a concentrarsi sul primo metodo eseguito in ciascuna run, producendo un tempo iniziale più elevato sulla prima colonna effettivamente processata.
 
-\newpage
+Al netto di questo effetto di inizializzazione, Spark può comunque rimanere leggermente più lento di Pandas nei metodi meno onerosi, poiché l'esecuzione distribuita introduce latenze aggiuntive di coordinamento e comunicazione che, per workload semplici, non vengono ammortizzate. È comunque opportuno sottolineare che tali considerazioni sono riferite al dataset e alla configurazione sperimentale adottati in questo studio; pertanto, su dati con diversa dimensionalità, distribuzione o complessità, il rapporto prestazionale tra i due backend potrebbe variare.
 
-\paragraph{Metodi ad alta complessità computazionale: } Per i metodi \texttt{noisy}, 
+
+\paragraph{Metodi ad alta complessità computazionale: } Per i metodi \texttt{noise}, 
 \texttt{outliers} e \texttt{labels} emerge una netta differenza tra i due backend, con Spark significativamente più veloce di Pandas su tutti i tipi di colonna. Nel backend Pandas si osserva una gerarchia di tempi proporzionale al tipo di dato:$$\text{float} < \text{int} < \text{string} < \text{date}$$I tempi Spark, al contrario, sono \textbf{straordinariamente uniformi} attraverso tutti i tipi di dato, con valori compresi tra 2 e 8 secondi indipendentemente dalla colonna. Questa uniformità è una conseguenza diretta del paradigma colonnare di Spark, dove tutte le operazioni vengono compilate in piani di esecuzione nativi JVM ed eseguite sulle partizioni in parallelo, senza transitare per l'interprete Python e senza subire il costo differenziale dei tipi di dato che penalizza Pandas.
+\label{paragraph:eccezioneColonnaDate}
+L'unica eccezione è rappresentata dalla colonna \texttt{date} nel metodo \texttt{noise} (circa 60 secondi), riconducibile a un'implementazione non ottimizzata per la gestione delle date nel backend Spark, che riproduce fedelmente la logica Pandas senza sfruttare appieno le primitive native di Spark per i tipi temporali.
 
-L'unica eccezione è rappresentata dalla colonna \texttt{date} nel metodo \texttt{noisy} (circa 60 secondi), riconducibile a un'implementazione non ottimizzata per la gestione delle date nel backend Spark, che riproduce fedelmente la logica Pandas senza sfruttare appieno le primitive native di Spark per i tipi temporali.
-
-In sintesi, a 1.000.000 di righe Spark è già vantaggioso per \texttt{noisy}, \texttt{outliers} e \texttt{labels} su tutti i tipi di colonna, mentre per \texttt{duplicated} e \texttt{missing} il punto di pareggio si colloca a volumi di dati superiori, dove l'overhead fisso diventa trascurabile rispetto al tempo di elaborazione.
+In sintesi, a 1.000.000 di righe Spark è già vantaggioso per \texttt{noise}, \texttt{outliers} e \texttt{labels} su tutti i tipi di colonna, mentre per \texttt{duplicated} e \texttt{missing} il punto di pareggio si colloca a volumi di dati superiori, dove l'overhead fisso diventa trascurabile rispetto al tempo di elaborazione.
 
 \subsection{Stress test su cluster remoto}
 \label{subsec:stress_test}

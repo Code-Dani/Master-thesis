@@ -143,9 +143,9 @@ Dal punto di vista delle prestazioni, anche senza i problemi di configurazione, 
 
 La baseline del modello LSTM, calcolata su 20 esecuzioni indipendenti senza rumore (Tabella~\ref{tab:lstm_baseline}), è $\text{F1} = 0.9739 \pm 0.0050$ e $\text{AUC} = 0.9638 \pm 0.0101$. Rispetto alla baseline MLP ($\text{AUC} = 0.9591$, Tabella~\ref{tab:mlp_baseline}), l'LSTM parte da un punto di partenza comparabile in termini di capacità discriminante: sfruttando l'informazione temporale codificata nelle finestre di 30 secondi, il modello è in grado di rilevare le anomalie di pressione con maggiore sensibilità già sul dato pulito.
 
-Il comportamento sotto rumore replica in parte le tendenze già osservate per MLP nel Capitolo~\ref{chap:MLP}, con alcune differenze strutturali rilevanti. Come per MLP, il rumore \textit{labels} produce la degradazione più severa, mentre \textit{duplicated} non produce alcun effetto misurabile. I metodi \textit{missing}, \textit{noisy} e \textit{outliers} applicati alle feature mostrano invece un comportamento parzialmente diverso rispetto a MLP, in particolare per quanto riguarda le feature \textbf{TP3} e \textbf{Oil\_temperature}, come analizzato nelle sezioni successive.
+Il comportamento sotto rumore replica in parte le tendenze già osservate per MLP nel Capitolo~\ref{chap:MLP}, con alcune differenze strutturali rilevanti. Come per MLP, il rumore \textit{labels} produce la degradazione più severa, mentre \textit{duplicated} non produce alcun effetto misurabile. I metodi \textit{missing}, \textit{noise} e \textit{outliers} applicati alle feature mostrano invece un comportamento parzialmente diverso rispetto a MLP, in particolare per quanto riguarda le feature \textbf{TP3} e \textbf{Oil\_temperature}, come analizzato nelle sezioni successive.
 
-Tutti i risultati sono riportati nelle Tabelle~\ref{tab:lstm_baseline}, \ref{tab:lstm_duplicated}, \ref{tab:lstm_labels}, \ref{tab:lstm_missing}, \ref{tab:lstm_noisy} e~\ref{tab:lstm_outliers} e nelle Figure~\ref{fig:LSTMf1Degradazione} e~\ref{fig:LSTMAUCDegradazione}.
+Tutti i risultati sono riportati nelle Tabelle~\ref{tab:lstm_baseline}, \ref{tab:lstm_duplicated}, \ref{tab:lstm_labels}, \ref{tab:lstm_missing}, \ref{tab:lstm_noise} e~\ref{tab:lstm_outliers} e nelle Figure~\ref{fig:LSTMf1Degradazione} e~\ref{fig:LSTMAUCDegradazione}.
 
 \newpage
 
@@ -164,19 +164,19 @@ La resistenza ai duplicati è spiegabile dalla natura del metodo: le righe aggiu
 
 Come già osservato per MLP nel Capitolo~\ref{chap:MLP}, l'F1-score weighted risulta una metrica scarsamente sensibile alla corruzione delle feature su questo dataset, a causa dello sbilanciamento delle classi~\cite{buda2018systematic, johnson2019survey}. Il 98\% dei campioni appartiene alla classe \textit{senza guasti} e il contributo ponderato di questa classe domina la metrica aggregata, mascherando degradazioni anche significative sulla classe minoritaria.
 
-Nei metodi \textit{missing}, \textit{noisy} e \textit{outliers}, la F1-score rimane sostanzialmente stabile per tutte e tre le feature testate: la deviazione massima dalla baseline a 50\% di rumore è di $0.0149$ punti, registrata per \textit{missing} su \texttt{TP3} ($0.9590 \pm 0.0041$, Tabella~\ref{tab:lstm_missing}). Gli intervalli di confidenza al 95\% si sovrappongono quasi completamente a quelli della condizione pulita, indicando assenza di degradazione statisticamente significativa sull'F1.
+Nei metodi \textit{missing}, \textit{noise} e \textit{outliers}, la F1-score rimane sostanzialmente stabile per tutte e tre le feature testate: la deviazione massima dalla baseline a 50\% di rumore è di $0.0149$ punti, registrata per \textit{missing} su \texttt{TP3} ($0.9590 \pm 0.0041$, Tabella~\ref{tab:lstm_missing}). Gli intervalli di confidenza al 95\% si sovrappongono quasi completamente a quelli della condizione pulita, indicando assenza di degradazione statisticamente significativa sull'F1.
 
 L'unica eccezione è il rumore \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo, come visibile nella Figura~\ref{fig:LSTMf1Degradazione}. Il crollo dell'F1 da $0.9739 \pm 0.0050$ a $0.4681 \pm 0.1629$ al 50\% di rumore (Tabella~\ref{tab:lstm_labels}) è una conseguenza diretta dell'alterazione del segnale di supervisione durante il training, confermando quanto già documentato per MLP e per i modelli deep in generale~\cite{zhang2017understandingdeeplearningrequires}.
 
 % -----------------------------------------------------------------------
 \section{AUC-ROC}
 
-L'analisi dell'AUC-ROC per i metodi \textit{missing}, \textit{noisy} e \textit{outliers} rivela un comportamento parzialmente diverso rispetto a MLP, con differenze rilevanti nelle feature \textbf{TP3} e \textbf{Oil\_temperature}.
+L'analisi dell'AUC-ROC per i metodi \textit{missing}, \textit{noise} e \textit{outliers} rivela un comportamento parzialmente diverso rispetto a MLP, con differenze rilevanti nelle feature \textbf{TP3} e \textbf{Oil\_temperature}.
 
 \subsection{DV\_pressure}
-Il comportamento di \texttt{DV\_pressure} sull'LSTM è analogo a quanto osservato per MLP: la feature presenta una distribuzione quasi-binaria (98\% dei valori a 0, con 5 durante i guasti), e la sua struttura informativamente netta la rende resistente a tutti i tipi di corruzione. L'AUC-ROC rimane stabile o migliora per \textit{noisy} ($0.9788 \pm 0.0089$ a 50\%) e per \textit{outliers}. Per \textit{missing} si osserva una leggera oscillazione, ma i valori rimangono all'interno degli intervalli di confidenza della baseline.
+Il comportamento di \texttt{DV\_pressure} sull'LSTM è analogo a quanto osservato per MLP: la feature presenta una distribuzione quasi-binaria (98\% dei valori a 0, con 5 durante i guasti), e la sua struttura informativamente netta la rende resistente a tutti i tipi di corruzione. L'AUC-ROC rimane stabile o migliora per \textit{noise} ($0.9788 \pm 0.0089$ a 50\%) e per \textit{outliers}. Per \textit{missing} si osserva una leggera oscillazione, ma i valori rimangono all'interno degli intervalli di confidenza della baseline.
 
-La spiegazione è la stessa già data per MLP: il metodo \textit{noisy} genera valori uniformi in $[0, 5]$, producendo valori medi attorno a $2.5$, sufficientemente distanti dal valore di guasto ($5$) da non compromettere la separabilità delle classi. La struttura temporale delle finestre LSTM non altera questa proprietà intrinseca della feature. È inoltre noto che l'aggiunta di rumore ai dati di input durante il training agisce come forma implicita di regolarizzazione~\cite{bishop1995training}, il che può spiegare la stabilità o il lieve miglioramento dell'AUC osservato su questa feature altamente strutturata.
+La spiegazione è la stessa già data per MLP: il metodo \textit{noise} genera valori uniformi in $[0, 5]$, producendo valori medi attorno a $2.5$, sufficientemente distanti dal valore di guasto ($5$) da non compromettere la separabilità delle classi. La struttura temporale delle finestre LSTM non altera questa proprietà intrinseca della feature. È inoltre noto che l'aggiunta di rumore ai dati di input durante il training agisce come forma implicita di regolarizzazione~\cite{bishop1995training}, il che può spiegare la stabilità o il lieve miglioramento dell'AUC osservato su questa feature altamente strutturata.
 
 \subsection{TP3}
 La feature \texttt{TP3} mostra sull'LSTM un comportamento diverso rispetto a MLP. Come illustrato nel Capitolo~\ref{chap:MLP}, l'MLP risultava quasi immune alla corruzione di \texttt{TP3} grazie alla correlazione perfetta con \texttt{Reservoirs}: quando \texttt{TP3} veniva corrotta, il modello si appoggiava automaticamente a \texttt{Reservoirs} come feature sostitutiva.
@@ -221,10 +221,10 @@ I risultati sono riportati nelle Tabelle~\ref{tab:lstm_new_duplicated_minority} 
 \paragraph{Missing.}
 La corruzione congiunta produce una degradazione progressiva e sistematica dell'AUC-ROC, che scende da $0.9638$ (baseline) fino a $0.8592 \pm 0.0590$ al 50\% di rumore. Il confronto con l'esperimento su \texttt{TP3} singola (Tabella~\ref{tab:lstm_missing}), dove l'AUC al 50\% si attestava a $0.9421 \pm 0.0237$, conferma che la degradazione aggiuntiva di $\approx 0.08$ punti è direttamente attribuibile alla rimozione del meccanismo di fallback su \texttt{Reservoirs}: privato di entrambe le sorgenti informative, il modello non riesce a compensare i valori mancanti nemmeno sfruttando il contesto temporale delle finestre. %La stessa tendenza è osservabile anche per MLP (Tabella~\ref{tab:mlp_tp3_reservoir}), dove l'AUC al 50\% con \textit{missing} si attesta a $0.9086 \pm 0.0224$: in quel caso però la degradazione è più contenuta, a conferma che l'LSTM — pur essendo più robusto sulla feature singola grazie al contesto temporale — risulta qui più vulnerabile, poiché il segnale sequenziale che sfruttava come compensazione si basa anch'esso su \texttt{TP3} e \texttt{Reservoirs}.
 
-\paragraph{Noisy.}
-Il rumore \textit{noisy} produce il risultato più rilevante dell'intero esperimento. L'AUC-ROC \textit{migliora} rispetto alla baseline nelle prime tre soglie: $0.9693 \pm 0.0180$ al 10\%, $0.9903 \pm 0.0049$ al 20\%, $0.9906 \pm 0.0045$ al 30\%, per poi collassare bruscamente a $0.7629 \pm 0.0509$ al 50\%. Anche l'F1-score, rimasta stabile fino al 30\%, subisce un crollo netto a $0.8914 \pm 0.0384$.
+\paragraph{Noise.}
+Il rumore \textit{noise} produce il risultato più rilevante dell'intero esperimento. L'AUC-ROC \textit{migliora} rispetto alla baseline nelle prime tre soglie: $0.9693 \pm 0.0180$ al 10\%, $0.9903 \pm 0.0049$ al 20\%, $0.9906 \pm 0.0045$ al 30\%, per poi collassare bruscamente a $0.7629 \pm 0.0509$ al 50\%. Anche l'F1-score, rimasta stabile fino al 30\%, subisce un crollo netto a $0.8914 \pm 0.0384$.
 
-Il miglioramento osservato alle basse percentuali è interpretabile come un effetto di \textbf{regolarizzazione implicita}: l'aggiunta di rumore ai valori di input durante il training introduce una perturbazione che contrasta l'overfitting, migliorando la capacità di generalizzazione del modello~\cite{10.1162/neco.1995.7.1.108}. Questo effetto benefico è tuttavia limitato a intensità di rumore moderate; quando la percentuale raggiunge il 50\%, la corruzione diventa sufficientemente severa da distruggere la struttura temporale delle sequenze su cui l'LSTM si basa, e le performance collassano in modo brusco e non recuperabile.% Il confronto con MLP (Tabella~\ref{tab:mlp_tp3_reservoir}), dove il metodo \textit{noisy} produce invece una degradazione monotona e graduale dell'AUC, evidenzia come la sensibilità dell'LSTM alla coerenza temporale del segnale amplifichi sia il beneficio della regolarizzazione a bassa intensità, sia il crollo a intensità elevata.
+Il miglioramento osservato alle basse percentuali è interpretabile come un effetto di \textbf{regolarizzazione implicita}: l'aggiunta di rumore ai valori di input durante il training introduce una perturbazione che contrasta l'overfitting, migliorando la capacità di generalizzazione del modello~\cite{10.1162/neco.1995.7.1.108}. Questo effetto benefico è tuttavia limitato a intensità di rumore moderate; quando la percentuale raggiunge il 50\%, la corruzione diventa sufficientemente severa da distruggere la struttura temporale delle sequenze su cui l'LSTM si basa, e le performance collassano in modo brusco e non recuperabile.% Il confronto con MLP (Tabella~\ref{tab:mlp_tp3_reservoir}), dove il metodo \textit{noise} produce invece una degradazione monotona e graduale dell'AUC, evidenzia come la sensibilità dell'LSTM alla coerenza temporale del segnale amplifichi sia il beneficio della regolarizzazione a bassa intensità, sia il crollo a intensità elevata.
 
 \paragraph{Outliers.}
 Il comportamento con \textit{outliers} è non monotono: l'AUC scende a $0.8864 \pm 0.0325$ al 10\% per poi oscillare attorno a $0.88$--$0.90$ fino al 30\%, e recuperare a $0.9309 \pm 0.0102$ al 50\%. L'F1-score rimane sostanzialmente stabile per tutte le percentuali, con variazioni inferiori al margine di confidenza. Il recupero dell'AUC al 50\% suggerisce che, ad alta densità di outlier, il modello ridistribuisce implicitamente i pesi su altre feature non corrotte, attenuando l'impatto della corruzione congiunta. Questo comportamento è analogo a quanto osservato per MLP nella stessa condizione (Tabella~\ref{tab:mlp_tp3_reservoir}).
@@ -358,8 +358,8 @@ La degradazione dell'AUC è spiegabile con il fatto che la duplicazione mirata s
 50\% & TP3             & $0.9732 \pm 0.0055$ & $0.9822 \pm 0.0057$ \\
 \bottomrule
 \end{tabular}
-\caption{Tabella risultati LSTM, rumore dal metodo \textit{noisy}.}
-\label{tab:lstm_noisy}
+\caption{Tabella risultati LSTM, rumore dal metodo \textit{noise}.}
+\label{tab:lstm_noise}
 \end{table}
 %--------------------------------
 \begin{table}[H]
@@ -420,10 +420,10 @@ La baseline di riferimento è riportata in Tabella~\ref{tab:lstm_baseline}.}
 30\% & missing  & $0.9497 \pm 0.0085$ & $0.8767 \pm 0.0392$ \\
 50\% & missing  & $0.9521 \pm 0.0053$ & $0.8592 \pm 0.0590$ \\
 \midrule
-10\% & noisy    & $0.9800 \pm 0.0039$ & $0.9693 \pm 0.0180$ \\
-20\% & noisy    & $0.9825 \pm 0.0017$ & $0.9903 \pm 0.0049$ \\
-30\% & noisy    & $0.9729 \pm 0.0049$ & $0.9906 \pm 0.0045$ \\
-50\% & noisy    & $0.8914 \pm 0.0384$ & $0.7629 \pm 0.0509$ \\
+10\% & noise    & $0.9800 \pm 0.0039$ & $0.9693 \pm 0.0180$ \\
+20\% & noise    & $0.9825 \pm 0.0017$ & $0.9903 \pm 0.0049$ \\
+30\% & noise    & $0.9729 \pm 0.0049$ & $0.9906 \pm 0.0045$ \\
+50\% & noise    & $0.8914 \pm 0.0384$ & $0.7629 \pm 0.0509$ \\
 \midrule
 10\% & outliers & $0.9550 \pm 0.0026$ & $0.8864 \pm 0.0325$ \\
 20\% & outliers & $0.9573 \pm 0.0055$ & $0.8973 \pm 0.0168$ \\

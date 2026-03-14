@@ -68,7 +68,7 @@ pt = PuckTrick(dataset, engine=Engine.AUTO, remote_cluster=config)
 \label{lst:pucktrick_custom_session}
 \end{listing}
 
-Per ragioni di design questo parametro è del tutto opzionale è può essere tranquillamente omesso.
+Per ragioni di design questo parametro è del tutto opzionale e può essere tranquillamente omesso.
 \newpage
 
 Internamente, ciascuno dei cinque metodi di iniezione del rumore delega l'esecuzione al modulo corrispondente nel backend selezionato. I due moduli condividono la stessa interfaccia contrattuale ma differiscono nell'implementazione: il backend Pandas opera in modo \textit{eager} su strutture dati in memoria, mentre il backend Spark costruisce un piano di esecuzione \textit{lazy} (DAG) ottimizzato dal Catalyst Optimizer e distribuito su tutti i nodi del cluster.
@@ -95,7 +95,7 @@ Apache Spark, al contrario, opera su collezioni distribuite prive di un ordiname
 La soluzione adottata introduce un identificativo di riga univoco con un ciclo di vita ben definito e trasparente all'utente, articolato in quattro fasi:
 
 \begin{enumerate}
-    \item \textbf{Creazione}: nel costruttore di \textbf{PuckTrick}, tramite il metodo esposto da pySpark \textit{monotonically\_increasing\_id()}, viene aggiunta al DataFrame Spark la colonna \textit{\_pucktrick\_row\_id} (Codice~\ref{lst:pucktrick_row_id}). La scelta di creare un identificativo con nome univoco e riservato alla libreria nasce da una criticità emersa durante lo sviluppo: nella versione precedente ciascun metodo generava il proprio ID interno, causando collisioni di nomi qualora il dataset in ingresso contenesse già una colonna omonima, situazione che Spark non segnala come errore ma gestisce creando colonne duplicate, con conseguenti ambiguità nelle operazioni successive.
+    \item \textbf{Creazione}: nel costruttore di \textbf{PuckTrick}, tramite il metodo esposto da PySpark \textit{monotonically\_increasing\_id()}, viene aggiunta al DataFrame Spark la colonna \textit{\_pucktrick\_row\_id} (Codice~\ref{lst:pucktrick_row_id}). La scelta di creare un identificativo con nome univoco e riservato alla libreria nasce da una criticità emersa durante lo sviluppo: nella versione precedente ciascun metodo generava il proprio ID interno, causando collisioni di nomi qualora il dataset in ingresso contenesse già una colonna omonima, situazione che Spark non segnala come errore ma gestisce creando colonne duplicate, con conseguenti ambiguità nelle operazioni successive.
 
     \item \textbf{Validazione}: ogni metodo di iniezione, prima di procedere con la corruzione, verifica che il DataFrame ricevuto in ingresso contenga la colonna menzionata al punto precedente: \textit{\_pucktrick\_row\_id}. In assenza di tale colonna l'esecuzione viene interrotta con un errore esplicito. Questo vincolo garantisce che i metodi vengano sempre invocati sul dataset restituito da \textit{pt.original} e non sul DataFrame grezzo originale, assicurando la coerenza degli identificativi di riga per tutta la durata della pipeline di iniezione.
 
@@ -105,7 +105,7 @@ La soluzione adottata introduce un identificativo di riga univoco con un ciclo d
 \end{enumerate}
 
 \label{subsection:problemaIDOriginalDF}
-La generazione di \textit{\_pucktrick\_row\_id} avviene nel costruttore solo quando il dataset fornito in input è già un DataFrame Spark; di conseguenza, nel caso in cui l’utente selezioni esplicitamente il backend Spark ma passa un original\_df Pandas, pt.original non può garantire la presenza dell’identificativo interno richiesto dalle operazioni di merge del backend distribuito.
+La generazione di \textit{\_pucktrick\_row\_id} avviene nel costruttore solo quando il dataset fornito in input è già un DataFrame Spark; di conseguenza, nel caso in cui l’utente selezioni esplicitamente il backend Spark ma passa un DataFrame Pandas (original\_df), pt.original non può garantire la presenza dell’identificativo interno richiesto dalle operazioni di merge del backend distribuito.
 
 Questa casistica non compromette la correttezza della libreria, poiché l’esecuzione viene successivamente interrotta dai controlli di coerenza alla chiamata dei metodi PuckTrick. Tuttavia, sebbene non comprometta la correttezza funzionale della libreria, rappresenta un limite di usabilità che sarà affrontato in futuri miglioramenti, come discusso nelle conclusioni~\ref{chap:conclusion}.
 

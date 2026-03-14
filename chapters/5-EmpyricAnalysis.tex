@@ -3,9 +3,9 @@
 \begin{document}
 
 \chapter{Analisi Empirica}
-\label{chap:EmpyricAnalysis}
+\label{chap:EmpyricAnalysis} % so che è errato, la versione corretta è EmpiricalAnalysis
 
-%Il rumore introdotto da Pucktrick non mira a replicare scenari reali specifici, ma a valutare in modo controllato e riproducibile la sensibilità dei modelli a diverse tipologie di corruzione dei dati, seguendo la metodologia adottata in \cite{maurino2025data}.
+%Il rumore introdotto da PuckTrick non mira a replicare scenari reali specifici, ma a valutare in modo controllato e riproducibile la sensibilità dei modelli a diverse tipologie di corruzione dei dati, seguendo la metodologia adottata in \cite{maurino2025data}.
 
 L'obbiettivo dell'analisi è rispondere in modo empirico e riproducibile alla domanda: \textit{Quali tipologie di rumore risultano più nocive ad un modello deep learning su dataset tabulare?}.
 
@@ -13,7 +13,7 @@ L'obbiettivo dell'analisi è rispondere in modo empirico e riproducibile alla do
 Questa sezione descrive il protocollo comune a tutti gli esperimenti presentati nel capitolo. Le scelte metodologiche qui descritte si applicano sia a MLP (Sezione~\ref{chap:MLP}) sia a LSTM (Sezione~\ref{chap:LSTM}).
 
 \subsection{Struttura degli esperimenti}
-Per ogni modello si è deciso di effettuare esecuzioni su quattro rumori:
+Per ogni modello si è deciso di effettuare esecuzioni su cinque rumori:
 \begin{itemize}
     \item \textbf{Tipo di rumore}: \texttt{duplicated}, \texttt{labels}, \texttt{missing}, \texttt{noise} e \texttt{outliers};
     
@@ -24,7 +24,7 @@ Per ogni modello si è deciso di effettuare esecuzioni su quattro rumori:
 \end{itemize}
 
 
-Ci sono due particolarità da menzionare: Per via della natura del metodo che introduce duplicati (duplicated), questo non verrà valutato su più feature, ma solo su una siccome per design il metodo lavora su righe intere.
+Ci sono due particolarità da menzionare: Per via della natura del metodo che introduce duplicati (duplicated), questo non verrà valutato su più feature, ma solo su una poiché, per design, il metodo lavora su righe intere.
 La seconda particolarità è che il metodo per introdurre rumore nelle etichette (label) è stato eseguito solo sul target. Di conseguenza il calcolo delle esecuzioni totali viene effettuato come nella seguente equazione~\ref{eq:total_runs}:
 \begin{equation}
   \underbrace{2 \times 5 \times 20}_{\texttt{duplicated} + \texttt{labels}}
@@ -36,7 +36,7 @@ La seconda particolarità è che il metodo per introdurre rumore nelle etichette
 
 \subsection{Dataset}
 \label{subsection:datasetSplit}
-Il dataset, con le colonne \textit{Pressure\_switch} e \textit{Oil\_level} rimosse, viene adesso suddiviso in train e test set, tuttavia per garantire coerenza tra i due modelli e quindi poter fare un confronto si è dovuto fare uno split temporale di modo da mantenere l'informazione del tempo. Lo split è stato fatto sulla data \textit{2020-06-01 00:00:00}, questo permette di avere due campioni con target a 1 (guasti) sia nel dataset di train, sia in quello di test. Tuttavia, questo vantaggio ci porta a lavorare con uno split inusuale del 56.6\% per il training set e 43.4\% per il test set, aumentando così il rischio che il modello non disponga di un campione di dati sufficientemente ampio per apprendere in modo completo le dinamiche del sistema, con una possibile riduzione della capacità di generalizzazione.
+Il dataset, con le colonne \textit{Pressure\_switch} e \textit{Oil\_level} rimosse, viene ora suddiviso in train e test set, tuttavia per garantire coerenza tra i due modelli e quindi poter fare un confronto si è dovuto fare uno split temporale di modo da mantenere l'informazione del tempo. Lo split è stato fatto alla data \textit{2020-06-01 00:00:00}. Questo permette di avere due campioni con target a 1 (guasti) sia nel dataset di train, sia in quello di test. Tuttavia, questo vantaggio ci porta a lavorare con uno split inusuale del 56.6\% per il training set e 43.4\% per il test set, aumentando così il rischio che il modello non disponga di un campione di dati sufficientemente ampio per apprendere in modo completo le dinamiche del sistema, con una possibile riduzione della capacità di generalizzazione.
 
 \paragraph{F1-score weighted.}
 Già introdotta nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}), andremo ad usare la F1-score come parametro sostitutivo all'accuracy del modello in quanto il dataset scelto \cite{MetroDT} presenta un forte sbilanciamento tra classi.
@@ -67,7 +67,7 @@ La formula per l'intervallo di confidenza al 95\% è quindi:
   \mathrm{IC}_{95\%} = \bar{x} \pm t_{0.025,\, n-1} \cdot \frac{s}{\sqrt{n}}
   \label{eq:CI}
 \end{equation}
-dove $n = 20$, $n - 1 = 19$ sono i gradi di libertà e $t_{0.025,\,19} = 2.093$ è il valore critico ricavato dalla tavola~\cite{student_table} $t$ di Student al livello di significatività del 5\%. Il termine $\frac{s}{\sqrt{n}}$ prende il nome di \textit{errore standard} e misura l'incertezza sulla stima della media: al crescere del numero di run, l'errore standard si riduce e l'intervallo si restringe.
+dove $n = 20$, $n - 1 = 19$ sono i gradi di libertà e $t_{0.025,\,19} = 2.093$ è il valore critico ricavato dalla tavola $t$ di Student~\cite{student_table} al livello di significatività del 5\%. Il termine $\frac{s}{\sqrt{n}}$ prende il nome di \textit{errore standard} e misura l'incertezza sulla stima della media: al crescere del numero di run, l'errore standard si riduce e l'intervallo si restringe.
 
 %analisi dt dopo la corruzione
 

@@ -8,9 +8,9 @@
 %idea generale
 \section{Introduzione al dataset}
 
-Per valutare l'impatto del rumore su modelli deep learning tabulari e applicati a serie temporali, è stato selezionato il dataset \textbf{MetroPT-3} \cite{MetroDT}. Il dataset raccoglie le misurazioni di sensori installati sul sistema pneumatico dei compressori del metrò di Porto (Portogallo) che sono campionate ogni secondo nell'arco di circa sei mesi (febbraio-agosto 2020). Il dataset conta \textbf{1.516.948 righe} e \textbf{15 feature} (più una colonna \texttt{target} generata a partire dal report dei guasti fornito dagli autori in tabella~\ref{tab:reportGuasti}, una per il \textbf{timestamp}), il cui schema è descritto nella Tabella~\ref{tab:schema-metrodt}.
+Per valutare l'impatto del rumore su modelli deep learning tabulari e applicati a serie temporali, è stato selezionato il dataset \textbf{MetroPT-3} \cite{MetroDT}. Il dataset raccoglie le misurazioni di sensori installati sul sistema pneumatico dei compressori della metropolitana di Porto (Portogallo) che sono campionate ogni secondo nell'arco di circa sei mesi (febbraio-agosto 2020). Il dataset conta \textbf{1.516.948 righe} e \textbf{15 feature} (più una colonna \texttt{target} generata a partire dal report dei guasti fornito dagli autori in tabella~\ref{tab:reportGuasti} e una per il \textbf{timestamp}), il cui schema è descritto nella Tabella~\ref{tab:schema-metrodt}.
 
-Il dataset è stato scelto per tre ragioni principali. In primo luogo, è privo di valori mancanti, il che consente di misurare con precisione l'effetto del rumore introdotto artificialmente da Pucktrick, senza interferenze dovute dalla presenza di valori pre-esistenti. In secondo luogo, per la sua natura temporale, che ci permette l'utilizzo di modelli che sfruttano quell'informazione. In terzo luogo, la sua dimensione, la quale giustifica pienamente l'utilizzo del cluster Apache Spark per l'elaborazione distribuita.
+Il dataset è stato scelto per tre ragioni principali. In primo luogo, è privo di valori mancanti, il che consente di misurare con precisione l'effetto del rumore introdotto artificialmente da PuckTrick, senza interferenze dovute dalla presenza di valori pre-esistenti. In secondo luogo, per la sua natura temporale, che ci permette l'utilizzo di modelli che sfruttano quell'informazione. In terzo luogo, la sua dimensione, la quale giustifica pienamente l'utilizzo del cluster Apache Spark per l'elaborazione distribuita.
 
 Il dataset è distribuito privo di etichette, tuttavia gli autori hanno rilasciato un \textit{report 
 dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \textit{Air Leak} verificatisi nel periodo coperto dal dataset. A partire da questo report è stata generata la colonna \texttt{target} con valore \textbf{1} a tutte le righe il cui timestamp ricade all'interno di uno degli intervalli di guasto, e \textbf{0} a tutte le righe rimanenti. 
@@ -24,8 +24,8 @@ dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \t
 \textbf{Feature} & \textbf{Tipo} & \textbf{Unità} & \textbf{Descrizione} \\
 \hline
 \texttt{timestamp}        & timestamp & --      & Istante di campionamento \\ \hline
-\texttt{TP2}              & double    & bar     & Pressione misurata al pannello pneumatico \\ \hline
-\texttt{TP3}              & double    & bar     & Pressione all'uscita del compressore \\ \hline
+\texttt{TP2}              & double    & bar     & Pressione all'uscita del compressore \\ \hline
+\texttt{TP3}              & double    & bar     & Pressione misurata al pannello pneumatico \\ \hline
 \texttt{H1}               & double    & bar     & Pressione nella linea di alimentazione \\ \hline
 \texttt{DV\_pressure}     & double    & bar     & Pressione sulla valvola di scarico \\ \hline
 \texttt{Reservoirs}       & double    & bar     & Pressione nei serbatoi d'aria \\ \hline
@@ -38,10 +38,10 @@ dei guasti} (Tabella~\ref{tab:reportGuasti}) che documenta quattro episodi di \t
 \texttt{LPS}              & binary    & --      & Segnale del pressostato di bassa pressione \\ \hline
 \texttt{Pressure\_switch} & binary    & --      & Segnale del pressostato di sicurezza \\ \hline
 \texttt{Oil\_level}       & binary    & --      & Segnale digitale del livello dell'olio \\ \hline
-\texttt{Caudal\_impulses} & binary    & bar     & Impulsi di portata del flusso d'aria \\ \hline
+\texttt{Caudal\_impulses} & binary    & --     & Impulsi di portata del flusso d'aria \\ \hline
 \texttt{target}           & binary    & bit     & Etichetta generata: 1 = guasto in corso, 0 = normale \\ \hline
 \end{tabular}
-\caption{Schema del dataset MetroPT-3. Le feature digitali assumono valori binari 0/1 pur essendo memorizzate come double. Dunque sono state inserite come binary}
+\caption{Schema del dataset MetroPT-3. Le feature digitali assumono valori binari 0/1 pur essendo memorizzate come double. Dunque sono state inserite come variabili binarie}
 \label{tab:schema-metrodt}
 \end{table}
 
@@ -113,7 +113,7 @@ L'\textbf{AUC-ROC} non è utilizzata per valutare le prestazioni assolute, per c
 Prima di costruire qualsiasi modello è fondamentale capire com'è fatto il dataset, che tipo di valore hanno le colonne, se ci sono anomalie e come si comportano i sensori nel tempo. In questa sezione andiamo ad analizzare i risultati ottenuti dall'esplorazione del dataset.
 
 \subsection{Schema}
-Come visibile nella tabella~\ref{tab:schema-metrodt}, la metà delle colonne è di tipo \textit{double}, mentre l'altra nonostante anch'essa viene valutata come double in realtà è categorica, quindi assume 0 o 1 come valori. L'unica eccezione è il \textbf{timestamp} che è di tipo \textit{timestamp}. E' stato, inoltre, verificata la mancanza di valori null.
+Come visibile nella tabella~\ref{tab:schema-metrodt}, la metà delle colonne è di tipo \textit{double}, mentre l’altra metà, pur essendo memorizzata come double, è in realtà categorica, quindi assume 0 o 1 come valori. L'unica eccezione è il \textbf{timestamp} che è di tipo \textit{timestamp}. E' stata, inoltre, verificata l'assenza di valori nulli.
 
 \textit{TP2, TP3, H1, DV\_pressure, Reservoirs, Motor\_current, Oil\_temperature} sono colonne analogiche e operano su scale fisiche differenti (bar, ampere, gradi Celsius); pertanto si è applicata una standardizzazione Z-score tramite StandardScaler di Apache Spark (withMean=True, withStd=True), che riporta ciascuna feature a media 0 e deviazione standard 1, rendendole confrontabili tra loro indipendentemente dall'unità di misura originale. Le restanti colonne corrispondono invece a sensori digitali che operano già in scala e non richiedono normalizzazione.
 
@@ -266,6 +266,6 @@ Nonostante le diverse metodologie adottate, la gerarchia delle feature più rile
 \label{tab:featureOutput}
 \end{table}
 
-La convergenza tra RF diretto, ChiSqSelector e UnivariateFeatureSelector sulle stesse feature rafforza la validità della selezione in quanto identificano lo stesso sottoinsieme informativo. Le feature \texttt{DV\_pressure}, \texttt{Oil\_temperature} e \texttt{TP3} costituiranno pertanto le feature primarie negli esperimenti di robustezza, in quanto candidate ad alta importanza su cui misurare l'impatto del rumore introdotto da Pucktrick, verranno invece eliminate \textit{Pressure\_switch} e \textit{Oil\_level} in quanto tutti e tre gli approcci concordano che non aggiungono alcun tipo di valore informativo. \textit{Towers}, invece, nonostante sia a $0$ su RF non verrà eliminata per due motivi principali: Il primo è che nella matrice di correlazione presenta una correlazione negativa con il target di $-0.22$, il secondo motivo è che ChiSqSelector e UnivariateFeatureSelector l'hanno mantenuta all'interno delle dieci feature più informative
+La convergenza tra RF diretto, ChiSqSelector e UnivariateFeatureSelector sulle stesse feature rafforza la validità della selezione in quanto identificano lo stesso sottoinsieme informativo. Le feature \texttt{DV\_pressure}, \texttt{Oil\_temperature} e \texttt{TP3} costituiranno pertanto le feature primarie negli esperimenti di robustezza, in quanto candidate ad alta importanza su cui misurare l'impatto del rumore introdotto da PuckTrick, verranno invece eliminate \textit{Pressure\_switch} e \textit{Oil\_level} in quanto tutti e tre gli approcci concordano che non aggiungono alcun tipo di valore informativo. \textit{Towers}, invece, nonostante sia a $0$ su RF non verrà eliminata per due motivi principali: Il primo è che nella matrice di correlazione presenta una correlazione negativa con il target di $-0.22$, il secondo motivo è che ChiSqSelector e UnivariateFeatureSelector l'hanno mantenuta all'interno delle dieci feature più informative
 
 \end{document}

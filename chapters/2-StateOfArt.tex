@@ -28,7 +28,7 @@ In risposta a questi limiti, si è affermato il paradigma \textit{data-centric} 
 
 Il problema assume una rilevanza ancora maggiore nel contesto del deep learning, infatti, si è dimostrato \cite{zhang2017understandingdeeplearningrequires} che i modelli DL sono in grado di memorizzare completamente etichette assegnate in modo casuale, raggiungendo training loss prossimo a zero anche in presenza di rumore totale. Questo implica che le architetture DL non possiedono una resistenza naturale alla corruzione dei dati e la loro capacità di generalizzazione dipende in modo critico dalla qualità del dataset di addestramento, molto più di quanto avvenga per modelli di machine learning.
 
-Di seguito vengono analizzati le cinque tipologie di rumore che verranno applicate:
+Di seguito vengono analizzate le cinque tipologie di rumore che verranno applicate:
 \subsection{Duplicati}
 I duplicati in un dataset sono righe o osservazioni identiche (o quasi) che si ripetono più volte. Rappresentano una \textit{ridondanza nei dati}, dove la stessa combinazione di valori applicata a tutte (o quasi tutte) le feature, appare ripetutamente. Ci possono essere diverse cause per le quali questo tipo di rumore può essere presente all'interno di un dataset. Tra le cause più comuni vi è la fusione di dati provenienti da fonti eterogenee.
 La presenza di duplicati all'interno del training set può impattare negativamente le prestazioni del modello in due modi principali. Il primo riguarda la distorsione delle metriche: se i duplicati sono presenti sia nel training che nel validation set, le metriche di valutazione risultano artificialmente gonfiate, producendo una stima ottimistica delle prestazioni reali. Il secondo riguarda l'overfitting: il modello viene esposto ripetutamente agli stessi pattern, riducendo la diversità effettiva del training set e compromettendo la capacità di generalizzazione su dati non visti.
@@ -36,7 +36,7 @@ La presenza di duplicati all'interno del training set può impattare negativamen
 Tuttavia, Maurino, nel suo paper "How Data Quality Affects machine learning Models for Credit Risk Assessment" \cite{maurino2025data} rileva un risultato controintuitivo: in ambito machine learning, i modelli con rumore duplicato introdotto ottengono prestazioni superiori rispetto alla baseline su otto dei dieci modelli testati. È degno di nota che l'unico modello con architettura deep learning incluso nell'analisi (MLP) mostri invece una degradazione delle prestazioni, suggerendo che i modelli deep potrebbero essere più sensibili alla presenza di duplicati rispetto ai modelli ML classici. Tuttavia, questo risultato, ottenuto su un dataset di credit risk, non trova conferma nei risultati sperimentali di questa tesi, come discusso nel Capitolo~\ref{chap:EmpyricAnalysis}.
 
 \subsection{Rumore sulle etichette}
-Il rumore sulle etichette indica casi dove nel dataset l'etichetta assegnata ad una riga è errata rispetto la realtà. Si tratta di dati rumorosi causati prevalentamente da errori umani \cite{Geiger_2021} o scraper web errati, i quali, durante la fase di labelling introducono errori. Tra i più comuni troviamo: etichette scambiate, etichette errate. Si definisce errore di etichettatura, dunque, qualsiasi alterazione errata delle etichette di classe all'interno del dataset.
+Il rumore sulle etichette indica casi dove nel dataset l'etichetta assegnata a una riga è errata rispetto la realtà. Si tratta di dati rumorosi causati prevalentemente da errori umani \cite{Geiger_2021} o scraper web errati che, durante la fase di labelling, introducono errori. Tra i più comuni troviamo: etichette scambiate, etichette errate. Si definisce errore di etichettatura, dunque, qualsiasi alterazione errata delle etichette di classe all'interno del dataset.
 
 Il rumore sulle etichette può essere modellato formalmente 
 attraverso una matrice di transizione $T$, dove ogni elemento (Equazione~\ref{eq:matriceTransizione}):
@@ -103,9 +103,9 @@ MLlib è la libreria di machine learning nativa di Apache Spark. Offre algoritmi
 
 Per le architetture più complesse non disponibili in MLlib, come la rete LSTM utilizzata per le serie temporali, Spark mette a disposizione \textit{TorchDistributor}: un modulo PySpark che permette di eseguire training PyTorch in modo distribuito su cluster Spark.
 
-\section{Pucktrick}
+\section{PuckTrick}
 
-Pucktrick è una libreria Python open-source che fornisce funzionalità per introdurre in modo controllato diversi tipi di corruzione all'interno di dataset, con l'obiettivo di simulare scenari realistici di degrado della qualità dei dati. Il nome della libreria è ispirato a Puck, il folletto dispettoso del romanzo \textit{A Midsummer Night's Dream} di Shakespeare, celebre per il caos che semina tra mortali e fate\cite{agostini2025pucktricklibrarymakingsynthetic}.
+PuckTrick è una libreria Python open-source che fornisce funzionalità per introdurre in modo controllato diversi tipi di corruzione all'interno di dataset, con l'obiettivo di simulare scenari realistici di degrado della qualità dei dati. Il nome della libreria è ispirato a Puck, il folletto dispettoso del romanzo \textit{A Midsummer Night's Dream} di Shakespeare, celebre per il caos che semina tra mortali e fate\cite{agostini2025pucktricklibrarymakingsynthetic}.
 
 La libreria supporta cinque tipologie di corruzione  \cite{maurino2025data}:
 
@@ -121,13 +121,13 @@ La libreria supporta cinque tipologie di corruzione  \cite{maurino2025data}:
     \item \textbf{Etichette errate}: corruzione intenzionale delle etichette di classe attraverso lo scambio di valori tra classi.
 \end{itemize}
 
-Il presente lavoro estende Pucktrick introducendo un backend 
+Il presente lavoro estende PuckTrick introducendo un backend 
 Apache Spark, descritto nel dettaglio nel 
 Capitolo~\ref{chap:DesignAndImplementation}.
 
 \section{Rumore nelle serie temporali}
 Una serie temporale è una sequenza di valori ordinati nel tempo la cui differenza principale rispetto a un dataset tabulare è che l'ordine di questi conta, quindi mescolare la serie distrugge l'informazione temporale.
-Con le serie temporali bisogna definire due concetti chiave: \textbf{point anomaly} e \textbf{contextual anomaly}, il primo si verifica quando uno o più valori risultano anomali in assoluto rispetto alla distribuzione generale della serie (Tabella~\ref{tab:pointAnomaly}),il secondo si verifica quando un valore è normale in assoluto ma risulta anomalo nel contesto temporale in cui è inserito (Tabella~\ref{tab:contextualAnomaly}).
+Per le serie temporali è necessario definire due concetti chiave: \textbf{point anomaly} e \textbf{contextual anomaly}, il primo si verifica quando uno o più valori risultano anomali in assoluto rispetto alla distribuzione generale della serie (Tabella~\ref{tab:pointAnomaly}),il secondo si verifica quando un valore è normale in assoluto ma risulta anomalo nel contesto temporale in cui è inserito (Tabella~\ref{tab:contextualAnomaly}).
 
 \begin{table}[H]
 \centering

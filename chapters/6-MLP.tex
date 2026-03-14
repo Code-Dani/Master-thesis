@@ -6,9 +6,9 @@
 \label{chap:MLP}
 
 \section{Tuning iperparametri su dato pulito}
-Il modello MLP di Spark MLib espone diversi iperparametri che influenza significativamente le performance del modello. Sceglierli in modo arbitrario rischierebbe di introdurre bias nei risultati, dove un modello mal configurato potrebbe degradare, non per il rumore introdotto, ma per via della configurazione.
+Il modello MLP di Spark MLlib espone diversi iperparametri che influenzano significativamente le performance del modello. Sceglierli in modo arbitrario rischierebbe di introdurre bias nei risultati, dove un modello mal configurato potrebbe degradare, non per il rumore introdotto, ma per via della configurazione.
 
-Gli iperparametri che andremo ad ottimizzare sono riportati nella tabella~\ref{tab:iperparametri} di sotto definita:
+Gli iperparametri che saranno ottimizzati sono riportati nella tabella~\ref{tab:iperparametri} seguente.
 
 \begin{table}[H]
     \centering
@@ -16,21 +16,21 @@ Gli iperparametri che andremo ad ottimizzare sono riportati nella tabella~\ref{t
         \hline
         \textbf{Iperparametro} & \textbf{Descrizione} & \textbf{Valori testati} \\
         \hline
-        \texttt{layers}
-          & Architettura completa della rete & \texttt{[13,32,2]}, \texttt{[13,64,2]}, \texttt{[13,32,16,2]}, \texttt{[13,64,32,16,2]} \\ \hline
-        \texttt{maxIter}
-          & Numero massimo di iterazioni di ottimizzazione & \texttt{50}, \texttt{100} \\ \hline
-        \texttt{stepSize}
-          & Learning rate dell'ottimizzatore L-BFGS & \texttt{0.01}, \texttt{0.05} \\ \hline
-        \texttt{blockSize}
-          & Dimensione del blocco per aggregazione gradienti & \texttt{[128, 256, 512]} \\ \hline
+        \textit{layers}
+          & Architettura completa della rete & \textit{[13,32,2]}, \textit{[13,64,2]}, \textit{[13,32,16,2]}, \textit{[13,64,32,16,2]} \\ \hline
+        \textit{maxIter}
+          & Numero massimo di iterazioni di ottimizzazione & \textit{50}, \textit{100} \\ \hline
+        \textit{stepSize}
+          & Learning rate dell'ottimizzatore L-BFGS & \textit{0.01}, \textit{0.05} \\ \hline
+        \textit{blockSize}
+          & Dimensione del blocco per aggregazione gradienti & \textit{[128, 256, 512]} \\ \hline
     \end{tabular}
     \caption{Tabella iperparametri testati}
     \label{tab:iperparametri}
 \end{table}
 \newpage
 
-Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossValidation} disponibile nativamente in Spark, la quale, ha identificato come configurazione ottimale tra quelle disponibili (Tabella~\ref{lst:best_params}), la configurazione $\texttt{layers} = [13, 64, 2]$, con $\texttt{maxIter} = 100$, $\texttt{stepSize} = 0.05$ e $\texttt{blockSize} = 128$.
+Per la ricerca degli iperparametri è stata usata una tecnica della classe \textit{CrossValidation} disponibile nativamente in Spark, la quale, ha identificato come configurazione ottimale tra quelle disponibili (Tabella~\ref{lst:best_params}), la configurazione $\textit{layers} = [13, 64, 2]$, con $\textit{maxIter} = 100$, $\textit{stepSize} = 0.05$ e $\textit{blockSize} = 128$.
 
 \begin{lstlisting}[language=xml, caption={Iperparametri ottimali selezionati dal CrossValidator e f1-score della configurazione}, label={lst:best_params}]
 {
@@ -43,21 +43,21 @@ Per la ricerca degli iperparametri è stata usata una tecnica di \textit{CrossVa
 \end{lstlisting}
 
 \paragraph{Nota sull'architettura selezionata.}
-La configurazione ottimale identificata dal cross-validator, \texttt{[13, 64, 2]}, presenta un unico hidden layer e costituisce tecnicamente una \textit{shallow neural
-network}, al confine della definizione classica di deep learning. È opportuno sottolineare che questa non è una scelta arbitraria, come specificato in tabella~\ref{lst:best_params}, architetture più profonde come \texttt{[13, 32, 16, 2]} e \texttt{[13, 64, 32, 16, 2]} erano incluse nello spazio di ricerca, ma sono state scartate dal cross-validator in favore della configurazione più semplice. Questo risultato suggerisce che, su questo dataset, la capacità rappresentativa aggiuntiva di layer ulteriori non produce un beneficio misurabile, e che la complessità del problema non richiede una profondità maggiore.
+La configurazione ottimale identificata dalla classe CrossValidation, \textit{[13, 64, 2]}, presenta un unico hidden layer e costituisce tecnicamente una \textit{shallow neural
+network}, al confine della definizione classica di deep learning. È opportuno sottolineare che questa non è una scelta arbitraria, come specificato nel Listing~\ref{lst:best_params}, architetture più profonde come \textit{[13, 32, 16, 2]} e \textit{[13, 64, 32, 16, 2]} erano incluse nello spazio di ricerca, ma sono state scartate dal cross-validator in favore della configurazione più semplice. Questo risultato suggerisce che, su questo dataset, la capacità rappresentativa aggiuntiva di layer ulteriori non produce un beneficio misurabile, e che la complessità del problema non richiede una profondità maggiore.
 
 
 %Sezione esecuzione del modello
 \section{Esecuzione del modello}
 \label{section:MLPEsecuzione}
 
-A differenza del modello LSTM (Capitolo~\ref{chap:LSTM}), che per via di limitazioni architetturali e di configurazione del cluster è stato eseguito localmente senza parallelizzazione (vedi Sezione~\ref{section:LSTM}), il training dell'MLP è stato eseguito sul cluster \textbf{Apache Spark} tramite \texttt{MLlib}, sfruttando la parallelizzazione distribuita dei calcoli.
+A differenza del modello LSTM (Capitolo~\ref{chap:LSTM}), che per via di limitazioni architetturali e di configurazione del cluster è stato eseguito localmente senza parallelizzazione (vedi Sezione~\ref{section:LSTM}), il training dell'MLP è stato eseguito sul cluster \textbf{Apache Spark} tramite \textit{MLlib}, sfruttando la parallelizzazione distribuita dei calcoli.
 
 L'esecuzione dell'analisi principale, che comprende le 20 run per ciascuna
 combinazione di tipo di rumore, feature e percentuale, con intervallo di confidenza
 al 95\%, ha impiegato complessivamente \textbf{11.98 ore}.
 
-Gli esperimenti di approfondimento (Sezione~\ref{sec:mlp_approfondimento}), condotti su \texttt{TP3}+\texttt{Reservoir} combinati e sulla duplicazione della classe minoritaria, hanno richiesto \textbf{3.23 ore} aggiuntive, per un tempo totale di esecuzione di \textbf{15.21 ore}.
+Gli esperimenti di approfondimento (Sezione~\ref{sec:mlp_approfondimento}), condotti su \textit{TP3}+\textit{Reservoir} combinati e sulla duplicazione della classe minoritaria, hanno richiesto \textbf{3.23 ore} aggiuntive, per un tempo totale di esecuzione di \textbf{15.21 ore}.
 
 %Sezione risultati
 \section{Risultati}
@@ -68,22 +68,22 @@ Tutti i risultati sono riportati nelle tabelle~\ref{tab:mlp_baseline},\ref{tab:m
 
 \subsection{Labels} 
 \label{subsec:mlp_labels}
-Come mostrato nella Sezione~\ref{subsec:corruzione_labels}, al 50\% di corruzione le due classi del target si equivalgono esattamente (50\% guasti, 50\% non guasti), privando il modello di qualsiasi segnale discriminativo affidabile durante il training. I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti. Come mostrano le figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, applicato al target del dataset, produce la degradazione più severa tra tutti i tipi di rumore testati. L'F1-score al 50\% di rumore crolla da una baseline $0.9750$  fino ad arrivare a $0.6166$, l'AUC-ROC invece, riflette fin da subito il deterioramento del dataset e già il 10\% del dataset sporcato è abbastanza per far crollare la metrica da una baseline di $0.9591$ al valore $0.7897$. E' possibile visionare la baseline nella tabella~\ref{tab:mlp_baseline}.
+Come mostrato nella Sezione~\ref{subsec:corruzione_labels}, al 50\% di corruzione le due classi del target si equivalgono esattamente (50\% guasti, 50\% non guasti), privando il modello di qualsiasi segnale discriminativo affidabile durante il training. I risultati ottenuti sono coerenti con quanto documentato in letteratura, infatti già Zhang et al.~\cite{zhang2017understandingdeeplearningrequires} hanno dimostrato che le reti deep tendono a memorizzare progressivamente le etichette corrotte, rendendole particolarmente vulnerabili al rumore introdotto da PuckTrick. Questo risultato è, inoltre, confermato empiricamente dai risultati ottenuti. Come mostrano le figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il rumore derivato dal metodo \textit{labels}, applicato al target del dataset, produce la degradazione più severa tra tutti i tipi di rumore testati. L'F1-score weighted al 50\% di rumore crolla da una baseline $0.9750$  fino ad arrivare a $0.6166$, l'AUC-ROC invece, riflette fin da subito il deterioramento del dataset e già il 10\% del dataset sporcato è abbastanza per far crollare la metrica da una baseline di $0.9591$ al valore $0.7897$. È possibile visionare la baseline nella tabella~\ref{tab:mlp_baseline}.
 
 \subsection{Duplicated}
 \label{subsec:mlp_duplicated}
-Come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti la F1-score rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline (Tabella~\ref{tab:mlp_baseline}). Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$, confermando la resistenza del modello.
+Come mostrato nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore} il modello risulta completamente resistente all'introduzione di righe duplicate, infatti l'F1-score weighted rimane invariata all'interno dell'intervallo di confidenza, con la massima varianza di $\pm 0.0026$ rispetto la baseline (Tabella~\ref{tab:mlp_baseline}). Anche l'AUC-ROC segue lo stesso andamento, con la massima varianza di $\pm 0.0092$, confermando la resistenza del modello.
 
 
 \section{F1-Score}
 
-Il calcolo è effettuato tramite \texttt{MulticlassClassificationEvaluator} di Spark MLlib con \texttt{metricName="f1"}, che restituisce il F1-score pesato per il supporto di classe (\textit{weighted}), equivalente ad \texttt{average="weighted"} in scikit-learn~\cite{scikit-learn}.
+Il calcolo è effettuato tramite \textit{MulticlassClassificationEvaluator} di Spark MLlib con \textit{metricName="f1"}, che restituisce l'F1-score weighted per il supporto di classe (\textit{weighted}), equivalente ad \textit{average="weighted"} in scikit-learn~\cite{scikit-learn}.
 
-L'F1-score weighted si mantiene complessivamente stabile all'aumentare della percentuale di rumore per quasi tutte le tipologie di corruzione testate. A 50\% di rumore, la degradazione massima osservata su \texttt{Missing}, \texttt{Noise} e \texttt{Outliers} è di $0.0167$ punti rispetto alla baseline ($0.9750 \pm 0.0007$, Tabella~\ref{tab:mlp_baseline}), registrata per \texttt{Noise} su \texttt{Oil\_temperature} (Tabella~\ref{tab:mlp_noise}), con intervalli di confidenza al 95\% che si sovrappongono quasi interamente a quelli della condizione pulita.
+L'F1-score weighted si mantiene complessivamente stabile all'aumentare della percentuale di rumore per quasi tutte le tipologie di corruzione testate. A 50\% di rumore, la degradazione massima osservata su \textit{Missing}, \textit{Noise} e \textit{Outliers} è di $0.0167$ punti rispetto alla baseline ($0.9750 \pm 0.0007$, Tabella~\ref{tab:mlp_baseline}), registrata per \textit{Noise} su \textit{Oil\_temperature} (Tabella~\ref{tab:mlp_noise}), con intervalli di confidenza al 95\% che si sovrappongono quasi interamente a quelli della condizione pulita.
 
-Tuttavia, questa stabilità non deve essere interpretata come robustezza del modello, ma come un artefatto della distribuzione delle classi nel dataset MetroPT-3, già descritta nel Capitolo~\ref{chap:DatasetAnalysis} e visibile in figura~\ref{fig:targetDistribution}. Il F1-score weighted pondera il contributo di ciascuna classe in proporzione al suo supporto: con il 98\% dei campioni appartenenti alla classe \textit{senza guasti}, la metrica è strutturalmente dominata da essa, come documentato in letteratura per i modelli deep learning su dataset sbilanciati~\cite{buda2018systematic, johnson2019survey}. Una degradazione nella capacità discriminativa del modello sulla classe \textit{guasto} viene, dunque, assorbita dalla quantità di informazioni della classe maggioritaria, risultando di fatto invisibile nella metrica aggregata. Per questo motivo, l'AUC-ROC, che la qualità del ranking indipendentemente dalla distribuzione delle classi, costituirà la metrica principale di questa analisi, mentre l'F1-score weighted viene mantenuto come misura di stabilità globale del modello.
+Tuttavia, questa stabilità non deve essere interpretata come robustezza del modello, ma come un artefatto della distribuzione delle classi nel dataset MetroPT-3, già descritta nel Capitolo~\ref{chap:DatasetAnalysis} e visibile in figura~\ref{fig:targetDistribution}. L'F1-score weighted pondera il contributo di ciascuna classe in proporzione al suo supporto: con il 98\% dei campioni appartenenti alla classe \textit{senza guasti}, la metrica è strutturalmente dominata da essa, come documentato in letteratura per i modelli deep learning su dataset sbilanciati~\cite{buda2018systematic, johnson2019survey}. Una degradazione nella capacità discriminativa del modello sulla classe \textit{guasto} viene, dunque, assorbita dalla quantità di informazioni della classe maggioritaria, risultando di fatto invisibile nella metrica aggregata. Per questo motivo, l'AUC-ROC, che la qualità del ranking indipendentemente dalla distribuzione delle classi, costituirà la metrica principale di questa analisi, mentre l'F1-score weighted viene mantenuto come misura di stabilità globale del modello.
 
-L'unica eccezione a questo pattern è il rumore di tipo \texttt{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo, come visibile nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore}. A differenza degli altri tipi di corruzione, il rumore sulle etichette altera direttamente il segnale di supervisione durante il training: il modello non riceve più informazioni corrette sulla classe target, indipendentemente dalla qualità delle feature in ingresso, come già osservato nella Sezione~\ref{subsec:mlp_labels}. Questo porta a una degradazione che non può essere mascherata dalla distribuzione sbilanciata delle classi (Tabella~\ref{tab:mlp_labels}).
+L'unica eccezione a questo pattern è il rumore di tipo \textit{Labels}, dove entrambe le metriche degradano in modo netto e statisticamente significativo, come visibile nelle figure~\ref{fig:F1-scoreRumore} e~\ref{fig:AUC-scoreRumore}. A differenza degli altri tipi di corruzione, il rumore sulle etichette altera direttamente il segnale di supervisione durante il training: il modello non riceve più informazioni corrette sulla classe target, indipendentemente dalla qualità delle feature in ingresso, come già osservato nella Sezione~\ref{subsec:mlp_labels}. Questo porta a una degradazione che non può essere mascherata dalla distribuzione sbilanciata delle classi (Tabella~\ref{tab:mlp_labels}).
 
 \section{AUC-ROC}
 L'analisi dell'AUC-ROC per i metodi \textit{missing}, \textit{outliers} e \textit{noise} rivela un comportamento asimmetrico tra le tre feature testate: \textbf{Oil\_temperature} degrada sistematicamente, mentre \textbf{DV\_pressure} e \textbf{TP3} mostrano una resistenza marcata. Le cause sono riconducibili a proprietà strutturali del dataset menzionate nel Capitolo~\ref{chap:DatasetAnalysis}.
@@ -107,7 +107,7 @@ else:
 \label{lst:noise_formula}
 \end{listing}
 
-Dove \texttt{F.rand()\footnote{\url{https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.rand.html}}} restituisce un valore uniforme in $[0.0, 1.0)$.
+Dove \textit{F.rand()\footnote{\url{https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.rand.html}}} restituisce un valore uniforme in $[0.0, 1.0)$.
 
 Quindi, avendo il dataset con il 98\% di dati che non sono guasti e aventi classe 0, il modello risulta particolarmente forte all'introduzione di rumore su questa feature.
 
@@ -121,14 +121,15 @@ Quindi, avendo il dataset con il 98\% di dati che non sono guasti e aventi class
 \subsection{TP3} Per TP3 invece la motivazione è diversa in quanto anche questa rientra tra le classi analogiche del dataset, come \textit{Oil\_temperature}, tuttavia se torniamo alla matrice di correlazione presentata nel capitolo precedente (Capitolo~\ref{chap:DatasetAnalysis}) e visionabile in figura~\ref{fig:matriceCorrelazione}, possiamo notare che \textit{TP3} ha correlazione \textbf{perfetta} con \textit{Reservoir}, come spiegato nella sezione~\ref{section:AnalisiCorrelazionePerfettaTP3Reservoir}.
 Per questo motivo l'ipotesi più plausibile è che il modello abbia determinato che \textit{TP3} non riusciva più a fornirgli le informazioni necessarie e dunque ha iniziato ad usare \textit{Reservoir}.
 
-\subsection{Oil\_temperature} a differenza di \textit{DV\_pressure} e \textit{TP3},
-questa feature non dispone di alcuna proprietà strutturale che ne attenui l'impatto della corruzione. Non è un quasi-binario come \textit{DV\_pressure}, né possiede una feature correlata che il modello usa come sostituto come accade, invece, per \textit{TP3} con \textit{Reservoir}. Il modello dipende quindi direttamente dai suoi valori per la discriminazione tra le classi, rendendo questa feature la più vulnerabile alla corruzione: l'AUC degrada da una baseline di $0.9591$ fino a $0.8137 \pm 0.0487$ con il metodo \textit{missing} al 50\%, fino a $0.8834 \pm 0.0256$ e fino a $0.8866 \pm 0.0203$, rispettivamente per \textit{noise} e \textit{outliers} alla stessa percentuale (Tabelle~\ref{tab:mlp_baseline}, \ref{tab:mlp_missing}, \ref{tab:mlp_noise}, \ref{tab:mlp_outliers}).
+\subsection{Oil\_temperature} 
+A differenza di \textit{DV\_pressure} e \textit{TP3}, questa feature non dispone di alcuna proprietà strutturale che ne attenui l'impatto della corruzione. Non è un quasi-binario come \textit{DV\_pressure}, né possiede una feature correlata che il modello usa come sostituto come invece accade per \textit{TP3} con \textit{Reservoir}. Il modello dipende quindi direttamente dai suoi valori per la discriminazione tra le classi, rendendo questa feature la più vulnerabile alla corruzione: l'AUC degrada da una baseline di $0.9591$, fino a $0.8137 \pm 0.0487$ con il metodo \textit{missing} al 50\%. Per \textit{noise} $0.8834 \pm 0.0256$, e per \textit{outliers} $0.8866 \pm 0.0203$ alla stessa percentuale (Tabelle~\ref{tab:mlp_baseline}, \ref{tab:mlp_missing}, \ref{tab:mlp_noise}, \ref{tab:mlp_outliers}).
+
 
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/mlp_f1_degradation.png}
-    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice F1-score. \textit{Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative}}
+    \caption{Degradazione del modello aumentando progressivamente la percentuale di rumore applicato con indice F1-score weighted. \textit{Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative}}
     \label{fig:F1-scoreRumore}
 \end{figure}
 
@@ -141,25 +142,25 @@ questa feature non dispone di alcuna proprietà strutturale che ne attenui l'imp
 
 \newpage
 
-\section{Esperimenti di approfondimento}
+\section{Ulteriori analisi}
 \label{sec:mlp_approfondimento}
 
-I risultati presentati nelle sezioni precedenti hanno suggerito due ipotesi specifiche, investigate con gli di sotto riportati.
+I risultati presentati nelle sezioni precedenti hanno suggerito due ipotesi specifiche, investigate con le analisi di sotto riportate.
 
 \subsection{Verifica della ridondanza strutturale: TP3 e Reservoir}
 \label{subsec:tp3_reservoir}
 
-L'analisi dell'AUC-ROC ha evidenziato che \textbf{TP3} risulta resistente alla corruzione nonostante sia una feature analogica, a differenza di \textbf{Oil\_temperature}. L'ipotesi formulata è che il modello, quando \texttt{TP3} viene corrotta, sfrutti \texttt{Reservoir} come segnale sostitutivo, data la correlazione perfetta ($r = 1.0$) tra le due feature documentata nel Capitolo~\ref{chap:DatasetAnalysis}. Per verificare questa ipotesi è stato condotto un esperimento aggiuntivo introducendo il rumore simultaneamente su entrambe le feature, privando così il modello di entrambe le sorgenti di informazione ridondante. Le distribuzioni dei dataset corrotti per questo esperimento sono analizzate nella Sezione~\ref{subsec:tp3_reservoir_empirico}.
+L'analisi dell'AUC-ROC ha evidenziato che \textbf{TP3} risulta resistente alla corruzione nonostante sia una feature analogica, a differenza di \textbf{Oil\_temperature}. L'ipotesi formulata è che il modello, quando \textit{TP3} viene corrotta, sfrutti \textit{Reservoir} come segnale sostitutivo, data la correlazione perfetta ($r = 1.0$) tra le due feature documentata nel Capitolo~\ref{chap:DatasetAnalysis}. Per verificare questa ipotesi è stato condotto un esperimento aggiuntivo introducendo il rumore simultaneamente su entrambe le feature, privando così il modello di entrambe le sorgenti di informazione ridondante. Le distribuzioni dei dataset corrotti per questo esperimento sono analizzate nella Sezione~\ref{subsec:tp3_reservoir_empirico}.
 
 I risultati, visionabili nelle Figure~\ref{fig:F1-TP3Reservoir}, \ref{fig:AUC-TP3Reservoir} ed inoltre riportati in Tabella~\ref{tab:mlp_tp3_reservoir}, mostrano un decremento dei valori F1 minoritario su \textit{missing} e \textit{noise}. Il comportamento più particolare lo ha \textit{outliers}, dove si verifica un peggioramento fino al 30\% di rumore e successivamente un miglioramento, questo comportamento porta a pensare che il modello abbia deciso di dare importanza ad altre feature del dataset piuttosto che continuare con TP3 e Reservoir.
 
-Sull'AUC-ROC si osserva un peggioramento più marcato per tutti i metodi. È notevole il comportamento di \textit{noise} e \textit{outliers}: entrambi registrano un miglioramento della metrica al 10\% di rumore, coerente con il fenomeno di regolarizzazione implicita formalizzato da Bishop~\cite{bishop1995noise}, per cui una perturbazione contenuta sugli input può ridurre l'overfitting. I due metodi divergono però nell'evoluzione successiva: \textit{noise} degrada monotonicamente dopo il picco iniziale, mentre \textit{outliers} presenta un andamento oscillante, con un peggioramento fino al 30\% seguito da un parziale recupero al 50\%, probabilmente riconducibile al riorientamento del modello verso altre feature del dataset discusso in precedenza.
+Sull'AUC-ROC si osserva un peggioramento più marcato per tutti i metodi. È notevole il comportamento di \textit{noise} e \textit{outliers}: entrambi registrano un miglioramento della metrica al 10\% di rumore, coerente con il fenomeno di regolarizzazione implicita formalizzato da Bishop~\cite{10.1162/neco.1995.7.1.108}, per cui una perturbazione contenuta sugli input può ridurre l'overfitting. I due metodi divergono però nell'evoluzione successiva, dove \textit{noise} degrada monotonicamente dopo il picco iniziale, mentre \textit{outliers} presenta un andamento oscillante, con un peggioramento fino al 30\% seguito da un parziale recupero al 50\%, probabilmente riconducibile al riorientamento del modello verso altre feature del dataset discusso in precedenza.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]
         {images/Results/new_mlp_f1_degradation.png}
-    \caption{Degradazione F1-score negli esperimenti di approfondimento: TP3+Reservoir combinati e Duplicated sulla classe minoritaria. Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative.}
+    \caption{Degradazione F1-score weighted negli esperimenti di approfondimento: TP3+Reservoir combinati e Duplicated sulla classe minoritaria. Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative.}
     \label{fig:F1-TP3Reservoir}
 \end{figure}
 
@@ -170,7 +171,7 @@ Sull'AUC-ROC si osserva un peggioramento più marcato per tutti i metodi. È not
     \caption{Degradazione AUC-ROC negli esperimenti di approfondimento: TP3+Reservoir combinati e Duplicated sulla classe minoritaria. Nota: l'asse Y ha scala adattiva per evidenziare le variazioni relative.}
     \label{fig:AUC-TP3Reservoir}
 \end{figure}
-
+\newpage
 \subsection{Duplicated sulla classe minoritaria}
 \label{subsec:duplicated_minority}
 
@@ -351,7 +352,7 @@ La baseline di riferimento è riportata in Tabella~\ref{tab:mlp_baseline}.}
 \bottomrule
 \end{tabular}
 \caption{Tabella risultati MLP, esperimento con rumore applicato 
-simultaneamente su \texttt{TP3} e \texttt{Reservoir}. 
+simultaneamente su \textit{TP3} e \textit{Reservoir}. 
 La baseline di riferimento è riportata in Tabella~\ref{tab:mlp_baseline}.}
 \label{tab:mlp_tp3_reservoir}
 \end{table}

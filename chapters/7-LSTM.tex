@@ -5,7 +5,7 @@
 \chapter{Long Short-Term Memory - LSTM}
 \label{chap:LSTM}
 
-\section{Tuning iperparametri su dato pulito}
+\section{Tuning degli iperparametri su dato pulito}
 La colonna timestamp è stata usata per ordinare il dataset in base all'informazione temporale, ma successivamente è stata droppata; questo non comporta una perdita di informazione in quanto rimane intrinseca nell'ordine delle righe.
 
 Gli iperparametri utilizzati per il tuning sono riportati nella Tabella~\ref{tab:lstm_iperparametri}:
@@ -34,16 +34,16 @@ A differenza del modello MLP (Capitolo~\ref{chap:MLP}), che utilizza l'ottimizza
 
 Adam combina il \textit{momentum} del primo momento (media mobile esponenziale dei gradienti) con la normalizzazione del secondo momento (varianza mobile), adattando il learning rate in modo indipendente per ciascun parametro del modello~\cite{kingma2017adammethodstochasticoptimization}. Questa proprietà lo rende particolarmente robusto in presenza di gradienti sparsi o con varianza elevata, condizione frequente nelle celle LSTM che elaborano dipendenze temporali a lungo termine~\cite{ALSELWI2024102068}. Adam è l'ottimizzatore standard per le reti ricorrenti nella letteratura recente ed è il default raccomandato da PyTorch per questo tipo di architettura.
 
-Per il tuning sono stati effettuati tre passaggi importanti riportati di seguito:
+Per il tuning sono stati effettuati i seguenti tre passaggi:
 \begin{enumerate}
-    \item \textbf{Split train/test principale}, effettuato con la stessa logica spiegata nella Sezione~\ref{subsection:datasetSplit};
-    \item \textbf{Split tune-train / tune-val};
-    \item \textbf{Ordinamento temporale}.
+\item \textbf{Split train/test principale}, effettuato con la stessa logica spiegata nella Sezione~\ref{subsection:datasetSplit};
+\item \textbf{Split tune-train / tune-val};
+\item \textbf{Ordinamento temporale}.
 \end{enumerate}
 
 \subsection{Risultati tuning iperparametri}
-L'esecuzione del tuning degli iperparametri è durata circa 6 ore per calcolare 30 combinazioni diverse di iperparametri.
-I risultati, calcolati con F1-score weighted e AUC-ROC, visibili nella Tabella~\ref{tab:lstm_tuning}, sono in linea con quanto visto nel Capitolo~\ref{chap:MLP} precedente: la F1-Score Weighted rimane pressoché invariata attorno a $\pm 0.96$, con solo alcuni casi in cui scende a $\pm 0.94$ (esecuzioni \textit{22} e \textit{30}). Si è dunque tenuto in considerazione la combinazione di entrambe le metriche e il tempo di esecuzione nel trovare il candidato ideale.
+L'esecuzione del tuning degli iperparametri è durata circa 6 ore per valutare 30 combinazioni diverse di iperparametri.
+I risultati, calcolati con F1-score weighted e AUC-ROC, visibili nella Tabella~\ref{tab:lstm_tuning}, sono in linea con quanto visto nel Capitolo~\ref{chap:MLP}: la F1-score weighted rimane pressoché invariata attorno a $\pm 0.96$, con solo alcuni casi in cui scende a $\pm 0.94$ (esecuzioni \textit{22} e \textit{30}). Si è dunque tenuta in considerazione la combinazione di entrambe le metriche e il tempo di esecuzione nel trovare il candidato ideale.
 
 Le tre combinazioni con valore di \textbf{AUC-ROC} più alto sono: combinazione \textbf{6}, \textbf{22} e \textbf{29}. Tuttavia la combinazione \textbf{22} presenta un \textit{F1-score Weighted} di \textit{0.9443}, pertanto è stata scartata. Le due combinazioni rimaste presentano F1 molto simili: rispettivamente $0.9632$ per la combinazione 6 e $0.9624$ per la combinazione 29.
 Il fattore decisivo è quindi il tempo: la combinazione 6 esegue in \textbf{687} secondi, mentre la 29 in \textbf{893}.
@@ -124,7 +124,7 @@ La Figura~\ref{fig:LSTMConfrontoTuningMetriche} mostra invece il confronto visiv
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{images/Results/lstm_tuning_metrics.png}
-    \caption{Confronto tra AUC-ROC e F1-Score Weighted per il tuning iperparametri LSTM.}
+    \caption{Confronto tra AUC-ROC e F1-score weighted per il tuning iperparametri LSTM.}
     \label{fig:LSTMConfrontoTuningMetriche}
 \end{figure}
 

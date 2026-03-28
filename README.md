@@ -1,150 +1,92 @@
 # Analisi comparativa delle prestazioni di modelli di deep learning su dati sintetici e rumorosi
 
-Repository a supporto della tesi di laurea *“Analisi comparativa delle prestazioni di modelli di deep learning su dati sintetici e rumorosi”*, Corso di Laurea in Informatica – Università degli Studi di Milano-Bicocca, A.A. 2024/2025. [file:1]
-
-## Obiettivo del progetto
-
-Lo scopo della repo è fornire codice, script e configurazioni utilizzati per:
-- Generare e corrompere dataset sintetici tramite diversi tipi di rumore (missing, noise, outliers, duplicated, rumore sulle labels). [file:1]
-- Addestrare e valutare modelli di deep learning (MLP e LSTM) su dati puliti e rumorosi. [file:1]
-- Analizzare l’impatto del rumore sulle performance (F1-score, AUC-ROC) e sull’affidabilità dei modelli. [file:1]
-
-## Contenuti della repository
-
-La struttura reale può variare; di seguito uno schema consigliato:
-
-- `data/`
-  - Dataset originali e versioni corrotte (o script per scaricarli/generarli).
-- `notebooks/`
-  - Notebook per esplorazione, analisi descrittiva e visualizzazione dei risultati.
-- `src/`
-  - `pucktrick_backend/`: implementazione o integrazione della libreria PuckTrick per introdurre rumore, con supporto sia Pandas che Spark. [file:1]
-  - `experiments_mlp/`: script per addestramento, tuning e valutazione del MLP. [file:1]
-  - `experiments_lstm/`: script per addestramento, tuning e valutazione del LSTM. [file:1]
-  - `utils/`: funzioni di supporto (preprocessing, metriche, logging, gestione esperimenti).
-- `configs/`
-  - File di configurazione (es. YAML/JSON) per definire parametri di esperimenti, set di feature, percentuali di rumore, ecc. [file:1]
-- `results/`
-  - Tabelle e log con F1-score e AUC-ROC per i vari scenari di rumore, in linea con le tabelle di riferimento riportate in appendice alla tesi. [file:1]
-- `environment.yml` / `requirements.txt`
-  - Dipendenze Python per riprodurre gli esperimenti.
-- `README.md`
-  - Questo file.
-
-Adatta i nomi delle cartelle ai nomi effettivamente presenti nella tua repo.
-
-## Tecnologie e dipendenze
-
-Principali strumenti utilizzati nel progetto (da rifinire in base alla repo reale):
-
-- **Linguaggio**: Python 3.x
-- **Librerie scientifiche**: `numpy`, `pandas`, `scikit-learn`, `matplotlib` / `seaborn`.
-- **Deep learning**: `PyTorch` (per l’implementazione di MLP e LSTM). [file:1]
-- **Big data e distribuito**: `Apache Spark` (MLlib, TorchDistributor) per la gestione di dataset distribuiti e l’esecuzione degli esperimenti su cluster. [file:1]
-- **Gestione esperimenti**: eventuale uso di strumenti per logging/track delle run (es. `mlflow`, `tensorboard`), se presenti nella repo.
-
-Esempio di installazione:
-
-```bash
-# con virtualenv
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate   # Windows
-
-pip install -r requirements.txt
-```
-
-Oppure:
-
-```bash
-# con Conda
-conda env create -f environment.yml
-conda activate tesi-noise-env
-```
-
-## Riproduzione degli esperimenti
-
-Di seguito un flusso generico per replicare i risultati della tesi (personalizza i nomi degli script/notebook in base alla repo):
-
-1. **Preparazione dati**
-   - Posiziona i dataset grezzi in `data/` oppure esegui lo script/notebook di generazione:  
-     ```bash
-     python src/data/make_dataset.py
-     ```
-   - (Opzionale) Esegui uno script di analisi esplorativa:  
-     ```bash
-     jupyter notebook notebooks/EDA.ipynb
-     ```
-
-2. **Introduzione del rumore con PuckTrick**
-   - Esegui gli script per applicare le diverse tipologie di rumore:
-     ```bash
-     python src/pucktrick_backend/apply_missing.py
-     python src/pucktrick_backend/apply_noise.py
-     python src/pucktrick_backend/apply_outliers.py
-     python src/pucktrick_backend/apply_duplicated.py
-     python src/pucktrick_backend/apply_labels_noise.py
-     ```
-   - Gli script dovrebbero produrre i dataset corrotti nelle relative sottocartelle di `data/`. [file:1]
-
-3. **Esperimenti con MLP**
-   - Tuning degli iperparametri su dato pulito:  
-     ```bash
-     python src/experiments_mlp/tuning_clean.py
-     ```
-   - Esecuzione su dataset rumorosi (per ciascun tipo e percentuale di rumore):  
-     ```bash
-     python src/experiments_mlp/run_experiments.py --noise-type missing --noise-level 0.1
-     python src/experiments_mlp/run_experiments.py --noise-type noise --noise-level 0.2
-     # ...
-     ```
-   - I risultati (F1-score, AUC-ROC, intervalli di confidenza al 95%) vengono salvati in `results/mlp/`. [file:1]
-
-4. **Esperimenti con LSTM**
-   - Tuning iperparametri su dato pulito:  
-     ```bash
-     python src/experiments_lstm/tuning_clean.py
-     ```
-   - Esecuzione del modello su dataset rumorosi:  
-     ```bash
-     python src/experiments_lstm/run_experiments.py --noise-type duplicated --noise-level 0.3
-     # ...
-     ```
-   - I risultati sono salvati in `results/lstm/`, con tabelle analoghe a quelle riportate in appendice B della tesi. [file:1]
-
-5. **Analisi dei risultati**
-   - Lancia i notebook di analisi per generare grafici e tabelle (es. effetto del rumore su F1 e AUC per ogni feature e modello):  
-     ```bash
-     jupyter notebook notebooks/analysis_mlp.ipynb
-     jupyter notebook notebooks/analysis_lstm.ipynb
-     ```
-
-## Principali esperimenti inclusi
-
-Gli esperimenti della tesi coprono, in sintesi: [file:1]
-
-- Valutazione di un MLP su:
-  - Dataset pulito (baseline).
-  - Dataset corrotti con:
-    - Rumore sulle feature (missing, noise, outliers) per diverse feature (DV_pressure, TP3, Oil_temperature) e diversi livelli di rumore (10%, 20%, 30%, 50%). [file:1]
-    - Rumore sulle etichette (labels) e duplicazione di righe (duplicated), anche mirata sulla classe minoritaria. [file:1]
-    - Corruzione simultanea di più feature (es. TP3 e Reservoirs). [file:1]
-
-- Valutazione di un LSTM su:
-  - Dataset pulito (baseline su 20 esecuzioni). [file:1]
-  - Dataset con rumore da duplicated, labels e altre forme di perturbazione, monitorando l’effetto su F1-score e AUC-ROC. [file:1]
-
-I risultati numerici dettagliati sono riportati nelle tabelle di riferimento delle appendici A e B del documento. [file:1]
-
-## Citazione
-
-Se utilizzi questo codice o ti basi su questi esperimenti per il tuo lavoro, ti prego di citare la seguente tesi:
-
-> Daniel Satriano, *Analisi comparativa delle prestazioni di modelli di deep learning su dati sintetici e rumorosi*, Tesi di Laurea, Università degli Studi di Milano-Bicocca, A.A. 2024/2025. [file:1]
+Tesi di Laurea Magistrale in Informatica – Università degli Studi di Milano-Bicocca  
+**Candidato:** Daniel Satriano | **Relatore:** Prof. Andrea Maurino | **A.A. 2024/2025**
 
 ---
 
-Se mi indichi la struttura effettiva della repo (cartelle e nomi file principali), posso adattare il README in modo perfettamente aderente al tuo progetto.
+## Descrizione
 
-```xml
+Questo repository contiene il codice, i notebook e i sorgenti LaTeX utilizzati per la tesi magistrale che analizza l'impatto di diverse tipologie di rumore sui dati (missing values, rumore sulle feature, outlier, duplicati, rumore sulle etichette) sulle performance di modelli di deep learning (MLP e LSTM), sfruttando la libreria **PuckTrick** per la generazione controllata del rumore su backend Pandas e Apache Spark.
+
+Il dataset utilizzato è il **Metro Interstate Traffic Volume dataset**, analizzato e corrotto sperimentalmente a vari livelli di rumore (10%, 20%, 30%, 50%).
+
+---
+
+## Struttura della repository
+
 ```
+Master-thesis/
+│
+├── main.tex                         # Entry point LaTeX della tesi
+├── frontispiece.tex                 # Frontespizio
+├── Acronyms.tex                     # Lista degli acronimi
+├── bibliography.bib                 # Bibliografia
+├── Requirements.txt                 # Dipendenze Python
+├── Tesi.pdf                         # PDF della tesi compilata
+│
+├── chapters/                        # Capitoli della tesi in LaTeX
+├── images/                          # Immagini e grafici usati nella tesi
+│
+├── notebook/
+│   ├── Metro-dt-analysis.ipynb      # Analisi esplorativa del dataset
+│   ├── pucktrick_noiseDT_analisys.py # Analisi del dataset dopo la corruzione con PuckTrick
+│   │
+│   ├── MLP/                         # Esperimenti con Multilayer Perceptron
+│   │
+│   └── LSTM/                        # Esperimenti con Long Short-Term Memory
+│       ├── lstm-tuning.py           # Tuning degli iperparametri LSTM
+│       ├── lstm_datasets_export.py  # Generazione ed esportazione dei dataset corrotti
+│       ├── lstm_model_only_train.py # Training del modello LSTM
+│       ├── lstm_tuning_images.py    # Generazione immagini per il tuning
+│       ├── lstm_results_final_base.jsonl  # Risultati sperimentali (JSONL)
+│       ├── lstm_analisi_risultati.ipynb   # Analisi e visualizzazione dei risultati LSTM
+│       └── new_experiments/         # Esperimenti aggiuntivi LSTM
+│
+└── pucktrick_conversion_results/    # Output del benchmark Pandas vs Spark
+```
+
+---
+
+## Tecnologie utilizzate
+
+- **Python 3.x** — linguaggio principale
+- **PyTorch** — implementazione di MLP e LSTM
+- **Apache Spark** (MLlib, TorchDistributor) — backend distribuito per PuckTrick e training su cluster
+- **PuckTrick** — libreria per l'introduzione controllata di rumore su DataFrame (Pandas/Spark)
+- **pandas**, **numpy**, **scikit-learn** — preprocessing e analisi dati
+- **LaTeX** — redazione del documento di tesi
+
+---
+
+## Installazione
+
+```bash
+git clone https://github.com/Code-Dani/Master-thesis.git
+cd Master-thesis
+
+python -m venv .venv
+source .venv/bin/activate   # Linux/macOS
+# .venv\Scripts\activate    # Windows
+
+pip install -r Requirements.txt
+```
+
+---
+
+## Flusso degli esperimenti
+
+1. **Analisi esplorativa** → `notebook/Metro-dt-analysis.ipynb`
+2. **Corruzione del dataset con PuckTrick** → `notebook/pucktrick_noiseDT_analisys.py`
+3. **Generazione dataset LSTM** → `notebook/LSTM/lstm_datasets_export.py`
+4. **Tuning iperparametri** → `notebook/LSTM/lstm-tuning.py` / equivalente in `notebook/MLP/`
+5. **Training e valutazione** → `notebook/LSTM/lstm_model_only_train.py` / equivalente in `notebook/MLP/`
+6. **Analisi risultati** → `notebook/LSTM/lstm_analisi_risultati.ipynb`
+
+---
+
+## Citazione
+
+Se utilizzi questo codice o ti basi su questo lavoro, cita:
+
+> Daniel Satriano, *Analisi comparativa delle prestazioni di modelli di deep learning su dati sintetici e rumorosi*, Tesi di Laurea Magistrale, Università degli Studi di Milano-Bicocca, A.A. 2024/2025.
